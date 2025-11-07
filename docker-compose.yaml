@@ -87,8 +87,8 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./dist:/usr/share/nginx/html:ro
-      - /home/ddt/trassir.com.crt:/etc/nginx/ssl/trassir.com.crt:ro
-      - /home/ddt/trassir.com.key:/etc/nginx/ssl/trassir.com.key:ro        
+      # - /home/ddt/trassir.com.crt:/etc/nginx/ssl/trassir.com.crt:ro
+      # - /home/ddt/trassir.com.key:/etc/nginx/ssl/trassir.com.key:ro        
     ports:
       - "80:80"
       - "443:443"
