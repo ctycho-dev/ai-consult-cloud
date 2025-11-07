@@ -1,0 +1,37 @@
+# Node modules
+node_modules
+npm-debug.log
+
+# Logs
+logs
+*.log
+*.log.*
+
+# Dependency files
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist
+build
+
+# Docker-related files
+Dockerfile*
+.dockerignore
+
+# Environment files
+.env
+.env.*
+
+# Editor and OS-specific files
+*.swp
+*~
+.vscode/
+.idea/
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+
+# Test and coverage reports
+coverage
+*.lcov

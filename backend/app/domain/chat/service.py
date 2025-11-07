@@ -1,0 +1,74 @@
+from fastapi import (
+    HTTPException,
+    status
+)
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.domain.chat.repository import ChatRepository
+from app.domain.chat.schema import (
+    ChatCreate,
+    ChatOutShort,
+    ChatOut
+)
+from app.domain.message.repository import MessageRepository
+from app.infrastructure.llm.openai_manager import OpenAIManager
+from app.domain.user.schema import UserOut
+from app.core.logger import get_logger
+from app.core.config import settings
+from app.enums.enums import AgentProvider
+
+logger = get_logger()
+
+
+class ChatService:
+    def __init__(
+        self,
+        db: AsyncSession,
+        repo: ChatRepository,
+        user: UserOut,
+        manager: OpenAIManager,
+
+    ):
+        self.db = db
+        self.repo = repo
+        self.user = user
+        self.manager = manager
+
+    async def get_all(self) -> list[ChatOutShort]:
+        chats = await self.repo.get_all(self.db, schema=ChatOutShort)
+        return chats
+    
+    async def get_chats_by_user(self) -> list[ChatOutShort]:
+        chats = await self.repo.get_by_user_id(self.db, self.user.id)
+        return chats
+
+    async def get_by_id(self, chat_id: int) -> ChatOut | None:
+        chat = await self.repo.get_by_id(self.db, chat_id)
+        if not chat:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+        if self.user.id != chat.user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed.")
+        return chat
+    
+    async def delete_by_id(self, chat_id: int) -> None:
+        chat = await self.repo.get_by_id(self.db, chat_id)
+        if not chat:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+
+        await self.manager.delete_conversation(chat.session_handle)
+
+        await self.repo.delete_by_id(self.db, chat_id)
+
+        return None
+
+    async def create(self, chat: ChatCreate) -> ChatOut:
+
+        # Step 1: Create OpenAI thread
+        create_conversation_id = await self.manager.create_conversation(self.user.id)
+
+        # Step 2: Create and insert Chat
+        chat.user_id = self.user.id
+        chat.session_handle = create_conversation_id
+
+        new_chat = await self.repo.create(self.db, chat)
+
+        return new_chat

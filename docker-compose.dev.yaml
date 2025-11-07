@@ -1,0 +1,52 @@
+version: "3.8"
+
+x-healthcheck-postgres-template: &postgreshealthcheck
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+    interval: 30s
+    timeout: 10s
+    retries: 5
+
+x-healthcheck-redis-template: &redishealthcheck
+  healthcheck:
+    test: ["CMD", "redis-cli", "ping"]
+    interval: 30s
+    timeout: 30s
+    retries: 3
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: assistant-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    networks:
+      - assistant-cloud-network
+    restart: always
+    <<: *postgreshealthcheck
+
+  redis:
+    image: redis:alpine3.20
+    container_name: redis-server
+    restart: always
+    ports:
+      - "6379:6379"
+    env_file:
+      - .env.dev
+    networks:
+      - assistant-cloud-network
+    command: ["sh", "-c", "redis-server --bind 0.0.0.0 --requirepass secret"]
+    <<: *redishealthcheck
+
+networks:
+  assistant-cloud-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
