@@ -19,6 +19,7 @@ from app.domain.message.schema import ResultPayload, SourceInfo
 from app.utils.oauth2 import create_temporary_access_token
 from app.database.connection import db_manager
 from app.infrastructure.redis.client import get_redis_client
+from app.core.decorators import log_timing
 
 
 logger = get_logger()
@@ -57,6 +58,7 @@ class BitrixService:
         self.bot_id: str = ""
         self.client_id: str = ""
     
+    @log_timing('Bitrix process.')
     async def process_webhook(self, form_data: dict):
         # Create fresh session for background task
         try:
@@ -92,7 +94,6 @@ class BitrixService:
         
         # 1. Validate event type
         if not self._should_process_event(self.webhook_data):
-            logger.info(f"[bitrix] Ignoring event: {self.webhook_data.get('event', 'unknown')}")
             return {"action": "ignored", "reason": "invalid_event_or_bot_message"}
 
         # 2. Process message with error handling
@@ -108,7 +109,6 @@ class BitrixService:
             
         except Exception as e:
             logger.error(f"[bitrix] Error processing message: {e}")
-            # Send error message to Bitrix chat instead of returning error
             if settings.MODE != 'dev':
                 await self.send_response(
                     self.dialog_id,
@@ -188,20 +188,6 @@ class BitrixService:
 
         return unquote(str(value))
     
-    # def validate_request(self, form_data) -> bool:
-    #     """Validate that request comes from your Bitrix24 instance."""
-        
-    #     domain = self.safe_get_form_value(form_data, 'auth[domain]')
-    #     member_id = self.safe_get_form_value(form_data, 'auth[member_id]')
-    #     app_token = self.safe_get_form_value(form_data, 'auth[application_token]')
-    #     bot_id = self.safe_get_form_value(form_data, 'data[BOT][357][BOT_ID]')
-        
-    #     if (domain != self.expected_domain or member_id != self.expected_member_id or app_token != self.expected_app_token or bot_id != self.expected_bot_id):
-    #         logger.warning(f"[bitrix_security] Invalid auth: domain={domain}, member_id={member_id}")
-    #         return False
-        
-    #     return True
-    
     def _parse_webhook_data(self, form_data) -> dict:
         """Extract all relevant data from Bitrix webhook."""
         
@@ -248,19 +234,18 @@ class BitrixService:
 
     async def _get_ai_response(self, db: AsyncSession, message_text: str, chat: ChatOut) -> ResultPayload:
         """Get AI response with timeout handling."""
-        
+
         try:
             if settings.MODE == 'test':
                 await asyncio.sleep(20)
-                
+    
                 return ResultPayload(
                     answer="Test response from AI assistant",
                     sources=[
                         SourceInfo(file_id=1, file_name="test_doc.pdf", page=1)
                     ]
                 )
-            # start_time = time.time()
-            
+
             # Add timeout for AI calls in background tasks
             reply = await asyncio.wait_for(
                 self.openai_manager.send_and_receive(
@@ -271,9 +256,7 @@ class BitrixService:
                 ),
                 timeout=30.0
             )
-            
-            # elapsed = time.time() - start_time
-            # logger.info(f"[DEBUG] Bitrix OpenAI API completed in {elapsed:.2f}s")
+
             return reply
 
         except asyncio.TimeoutError:
@@ -297,19 +280,15 @@ class BitrixService:
         payload = {
             "BOT_ID": bot_id,
             "CLIENT_ID": '354',
-            # "CLIENT_ID": client_id,
             "DIALOG_ID": dialog_id,
             "MESSAGE": message
         }
-        
-        logger.info(f"[bitrix_service] Sending response  bot_id: {bot_id}, dialog_id: {dialog_id}, client_id {client_id}")
         
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(self.webhook_url, json=payload)
                 response.raise_for_status()
-                result = response.json()
-                logger.info(f"[bitrix_service] Response sent successfully: {result}")
+                response.json()
                 return True
         except Exception as e:
             logger.error(f"[bitrix_service] Failed to send response: {e}")

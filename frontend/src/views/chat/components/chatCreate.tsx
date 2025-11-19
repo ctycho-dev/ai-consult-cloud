@@ -32,7 +32,6 @@ const ChatCreate: React.FC<ChatCreateProps> = ({ opened, close }) => {
 
             if (res && 'data' in res && res.data) {
                 toast.success('Рабочая область создана.');
-                close();
                 setChatName('');
             } else {
                 toast.error('Произошла неизвестная ошибка.');
@@ -40,6 +39,7 @@ const ChatCreate: React.FC<ChatCreateProps> = ({ opened, close }) => {
         } catch (error: any) {
             toast.error(error?.message || 'Произошла ошибка при отправке запроса.');
         } finally {
+            close();
             setIsLoading(false);
         }
     };

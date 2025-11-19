@@ -9,12 +9,10 @@ from app.domain.chat.schema import (
     ChatOutShort,
     ChatOut
 )
-from app.domain.message.repository import MessageRepository
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.domain.user.schema import UserOut
 from app.core.logger import get_logger
-from app.core.config import settings
-from app.enums.enums import AgentProvider
+
 
 logger = get_logger()
 

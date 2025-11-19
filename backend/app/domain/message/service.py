@@ -129,7 +129,7 @@ class MessageService:
             user_msg,
             assistant_msg
         ]
-    
+
     async def _process_assistant_response(
         self,
         chat_id: int,
@@ -139,8 +139,6 @@ class MessageService:
     ):
         async with db_manager.session_scope() as db:
             try:
-                # start_time = time.perf_counter()
-                # Call OpenAI and get the reply
                 reply = await self.manager.send_and_receive(
                     db=db,
                     conv_id=session_handle,
@@ -169,9 +167,6 @@ class MessageService:
                         "sources": sources_dict
                     }
                 )
-
-                # elapsed = time.perf_counter() - start_time
-                # print(f"OpenAI response took {elapsed:.3f} seconds")
 
                 # Push updated message to SSE channel
                 redis = await get_redis_client()

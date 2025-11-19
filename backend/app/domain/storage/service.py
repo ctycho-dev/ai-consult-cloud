@@ -48,7 +48,6 @@ class VectorStoreService:
 
         # Set as default
         updated_storage = await self.repo.set_as_default(self.db, storage_id)
-        logger.info(f"Storage {storage_id} set as default")
 
         return updated_storage
 
@@ -65,8 +64,6 @@ class VectorStoreService:
             doc = fitz.open(file_path)
             text = ''.join([page.get_text() for page in doc])
             doc.close()
-
-            logger.info(f"📄 PDF Text Preview:\n{text[:500]}...")
 
             txt_path = f'{file_path}.txt'
             with open(txt_path, 'w', encoding='utf-8') as f:

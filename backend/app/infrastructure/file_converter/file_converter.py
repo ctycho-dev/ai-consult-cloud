@@ -43,7 +43,6 @@ class FileConverter:
         if enable and api_val:
             try:
                 self._llama = LlamaParseConverter(api_key=api_val, verbose=False)
-                logger.info("LlamaParse Excel converter enabled")
             except Exception as e:
                 logger.warning("Failed to initialize LlamaParse converter, will fallback to local: %s", e)
         else:

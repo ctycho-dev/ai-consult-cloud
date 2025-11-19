@@ -19,6 +19,7 @@ from app.domain.user.schema import UserOut
 from app.domain.message.schema import ResultPayload, SourceInfo
 from app.domain.file.repository import FileRepository
 from app.core.logger import get_logger
+from app.core.decorators import log_timing
 
 
 logger = get_logger()
@@ -37,6 +38,7 @@ class OpenAIManager:
         self.client = client
         self.file_repo = file_repo
 
+    @log_timing("OpenAI:create_conversation")
     async def create_conversation(self, user_id: int) -> str:
         """
         Create a conversation for a specific user.
@@ -50,6 +52,7 @@ class OpenAIManager:
         )
         return conversation.id
     
+    @log_timing("OpenAI:delete_conversation")
     async def delete_conversation(self, conv_id: str) -> None:
         """
         Delete conversation by ID.
@@ -114,6 +117,7 @@ class OpenAIManager:
         
         return ResultPayload(answer=answer, sources=sources)
 
+    @log_timing("OpenAI:message")
     @retry(
         stop=stop_after_attempt(2),
         wait=wait_exponential(multiplier=1, min=4, max=10),
@@ -140,8 +144,7 @@ class OpenAIManager:
             # if not active:
             #     # Optionally create new conversation here or throw exception
             #     logger.warning(f"Conversation {conv_id} inactive, consider creating a new one.")
-            
-            logger.info("Sending to OpenAI...")
+
             return await self.create_response(db, conv_id, user, user_input)
 
         except (InternalServerError, RateLimitError, APIError) as e:
@@ -151,14 +154,8 @@ class OpenAIManager:
             logger.exception("OpenAIManager unexpected error in send_and_receive: %s", e)
             raise
 
+    @log_timing("OpenAI:create_file")
     async def create_file_from_path(self, path: str, vector_store_id: str):
-        # with open(path, "rb") as f:
-        #     openai_file = await self.client.files.create(file=f, purpose="assistants")
-        # await self.client.vector_stores.files.create(
-        #     vector_store_id=vector_store_id,
-        #     file_id=openai_file.id,
-        # )
-        # return openai_file
         async with aiofiles.open(path, "rb") as f:
             file_content = await f.read()
         
@@ -172,6 +169,7 @@ class OpenAIManager:
         )
         return openai_file
 
+    @log_timing("OpenAI:delete_file")
     async def delete_file(
         self, vector_store_id: str, file_id: str, max_retries=3, delay=1
     ):

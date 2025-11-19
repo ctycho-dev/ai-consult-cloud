@@ -158,7 +158,6 @@ class FileService:
                 uploaded_file,
                 suffix=self._suffix_from_name(original_name)
             )
-            logger.info("[temp] original file saved at: %s (%d bytes)", tmp_orig, size_bytes)
 
             # 2. Deduplication check
             await self._check_for_duplication(sha256_hex, original_name)
@@ -204,7 +203,6 @@ class FileService:
             if tmp_orig and tmp_orig.exists():
                 try:
                     tmp_orig.unlink(missing_ok=True)
-                    logger.info("[cleanup] deleted original temp: %s", tmp_orig)
                 except Exception as e:
                     logger.warning("Failed to delete temp file %s: %s", tmp_orig, e)
 
@@ -212,7 +210,6 @@ class FileService:
             if tmp_conv and tmp_conv.exists():
                 try:
                     tmp_conv.unlink(missing_ok=True)
-                    logger.info("[cleanup] deleted converted temp: %s", tmp_conv)
                 except Exception as e:
                     logger.warning("Failed to delete converted temp %s: %s", tmp_conv, e)
 

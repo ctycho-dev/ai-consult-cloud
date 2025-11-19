@@ -4,7 +4,6 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi import (
     Request,
-    HTTPException,
     status
 )
 from fastapi.responses import JSONResponse
@@ -44,11 +43,9 @@ async def rate_limit_exceeded_handler(request: Request, exc: Exception):
             content={"error": "Rate limit exceeded. Please try again later."},
         )
 
-    # Log unexpected exceptions passed to this handler
     logger.warning(
         "Unexpected exception passed to rate_limit_exceeded_handler: %s",
         exc,
         exc_info=True
     )
-    # Re-raise so FastAPI handles it normally
     raise exc

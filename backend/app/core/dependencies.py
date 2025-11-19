@@ -28,30 +28,23 @@ from app.infrastructure.yandex.yandex_s3_client import YandexS3Client
 from app.infrastructure.file_converter.file_converter import FileConverter
 from app.core.config import settings
 from app.database.connection import db_manager
+from app.middleware.logging import set_user_email, get_user_email
 
 
 # -------------------------
 # Database Connection
 # -------------------------
-# Dependency to get DB session
 async def get_db():
     """
     FastAPI dependency to get a database session.
     """
     async with db_manager.session_scope() as session:
         yield session
-    # async with db_manager.get_session() as session:
-    #     try:
-    #         yield session
-    #     except Exception:
-    #         await session.rollback()
-    #         raise
-    #     finally:
-    #         await session.close()
 
 
 def get_file_converter() -> FileConverter:
     return FileConverter()
+
 # -------------------------
 # Repository Factories
 # -------------------------
@@ -121,6 +114,8 @@ async def get_current_user(
             raise credentials_exception
 
         request.state.user = user.id
+        set_user_email(user.email, request)
+
         return user
     except JWTError as exc:
         raise credentials_exception from exc
@@ -242,6 +237,9 @@ async def get_bitrix_user_from_request(
                 status_code=500,
                 detail="Failed to create user account"
             )
+
+    request.state.user = user.id
+    set_user_email(user.email, request)
 
     return user
 

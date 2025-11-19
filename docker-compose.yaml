@@ -34,8 +34,10 @@ services:
       dockerfile: Dockerfile
     container_name: backend
     hostname: backend
-    expose:
-      - "8000"
+    # expose:
+    #   - "8000"
+    ports:
+      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy

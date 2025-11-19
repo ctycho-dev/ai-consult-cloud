@@ -1,5 +1,5 @@
 import os
-from pydantic import SecretStr
+from pydantic import SecretStr, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,6 +7,24 @@ def get_env_file():
     mode = os.getenv('mode', 'prod')
     return '../.env.dev' if mode in ['dev', 'test'] else '.env'
     # return f'../.env.{mode}' if mode in ['dev', 'test'] else '.env'
+
+
+class ApiV1Prefix(BaseModel):
+    prefix: str = "/api/v1"
+    chat: str = "/chat"
+    file: str = "/file"
+    message: str = "/message"
+    storage: str = "/storage"
+    user: str = "/user"
+
+
+class ApiV2Prefix(BaseModel):
+    prefix: str = "/api/v2"
+
+
+class ApiPrefix(BaseModel):
+    v1: ApiV1Prefix = ApiV1Prefix()
+    v2: ApiV2Prefix = ApiV2Prefix()
 
 
 class Settings(BaseSettings):
@@ -17,8 +35,8 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    API_VERSION: str
-    MODE: str = 'prod'  # dev, test, prod
+    api: ApiPrefix = ApiPrefix()
+    MODE: str = 'prod'
     PROXY_URL: str | None = None
 
     ADMIN_LOGIN: str
