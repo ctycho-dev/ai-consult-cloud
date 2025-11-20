@@ -1,4 +1,3 @@
-import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +6,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from app.database.connection import db_manager
 from app.api.v1 import router as api_router
+from app.core.config import settings
 from app.exceptions.exceptions import add_exception_handlers
 from app.core.logger import (
     get_logger,
@@ -46,8 +46,11 @@ app.add_exception_handler(
 )
 
 origins = [
-    "http://localhost:5173",
+    "https://jitl-it.ru",
 ]
+
+if settings.MODE == "dev":
+    origins.append("http://localhost:5173")
 
 
 app.add_middleware(
@@ -67,6 +70,6 @@ app.include_router(api_router)
 
 
 @app.get("/health")
-@limiter.limit("5/minute")
+@limiter.limit("60/minute")
 async def health_check(request: Request):
     return {"status": "healthy"}

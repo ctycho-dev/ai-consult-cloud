@@ -227,6 +227,7 @@ class OpenAIManager:
             logger.exception("Failed to fetch uploaded files from OpenAI.")
             raise RuntimeError("Could not retrieve OpenAI files.") from e
     
+    # TODO: check if vector storage chosen
     def _get_user_tools(
         self, user: UserOut
     ) -> list[dict[str, Any]]:

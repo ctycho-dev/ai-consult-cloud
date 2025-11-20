@@ -34,10 +34,8 @@ services:
       dockerfile: Dockerfile
     container_name: backend
     hostname: backend
-    # expose:
-    #   - "8000"
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,8 +52,10 @@ services:
   postgres:
     image: postgres:17
     container_name: assistant-db
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
+    # ports:
+    #   - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
@@ -71,8 +71,8 @@ services:
     image: redis:alpine3.20
     container_name: redis-server
     restart: always
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     env_file:
       - .env
     environment:
