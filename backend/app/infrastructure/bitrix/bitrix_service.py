@@ -50,7 +50,7 @@ class BitrixService:
         self.expected_app_token = "354"
         self.expected_bot_id = "357"
 
-        self.base_url = 'https://ai-consultant-cloud.trassir.com'
+        self.base_url = settings.BASE_URL
         # Bitrix API settings
         self.webhook_url = settings.BITRIX_WEBHOOK_URL
         self.webhook_data: dict = {}

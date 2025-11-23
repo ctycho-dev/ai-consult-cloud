@@ -35,6 +35,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
+    BASE_URL: str
     api: ApiPrefix = ApiPrefix()
     MODE: str = 'prod'
     PROXY_URL: str | None = None

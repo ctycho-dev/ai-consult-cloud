@@ -11,7 +11,8 @@ logger = get_logger()
 redis_client = Redis(
     host=settings.REDIS_HOST,
     port=settings.REDIS_PORT,
-    password=settings.REDIS_PASSWORD
+    password=settings.REDIS_PASSWORD,
+    username="default"
 )
 
 
