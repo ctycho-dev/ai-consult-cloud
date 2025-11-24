@@ -102,6 +102,7 @@ class OpenAIManager:
             instructions=instructions,
             # conversation=conv_id,
             input=[{"role": "user", "content": user_input}],
+            # temperature=0.7,
         )
 
         answer = ""
@@ -227,6 +228,45 @@ class OpenAIManager:
             logger.exception("Failed to fetch uploaded files from OpenAI.")
             raise RuntimeError("Could not retrieve OpenAI files.") from e
     
+    @log_timing("OpenAI:list_vector_store_files")
+    async def list_vector_store_files(self, vector_store_id: str):
+        """
+        List all files attached to a specific vector store.
+        """
+        all_files = []
+        after = None
+        while True:
+            page = await self.client.vector_stores.files.list(
+                vector_store_id=vector_store_id,
+                limit=100,
+                after=after,
+            )
+            all_files.extend(page.data)
+
+            # OpenAI returns a cursor (e.g. page.has_more / page.last_id / page.next_cursor)
+            # Adjust field names to your actual client object.
+            if not getattr(page, "has_more", False):
+                break
+
+            after = getattr(page, "last_id", None)
+            if not after:
+                break
+
+        print('result len', len(all_files))
+        res = [file for file in all_files if file.status != 'completed']
+        return res  # result.data is list[VectorStoreFile] [web:21][web:35]
+
+    @log_timing("OpenAI:retrieve_file")
+    async def retrieve_file(self, file_id: str):
+        """
+        Retrieve OpenAI file metadata by file id.
+        """
+        vs_file = await self.client.vector_stores.files.retrieve(
+            vector_store_id='vs_690cb6b0c6dc81919f7a67a2cdf17025',
+            file_id=file_id,
+        )
+        return vs_file
+
     # TODO: check if vector storage chosen
     def _get_user_tools(
         self, user: UserOut

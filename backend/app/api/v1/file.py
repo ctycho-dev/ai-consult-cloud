@@ -5,8 +5,9 @@ from fastapi import (
 from app.middleware.rate_limiter import limiter
 from app.domain.file.schema import FileOut
 from app.domain.file.service import FileService
+from app.domain.file.service_public import PublicFileService
 from app.utils.oauth2 import validate_file_access_token
-from app.core.dependencies import get_file_service
+from app.core.dependencies import get_file_service, get_file_public_service
 from app.core.logger import get_logger
 from app.core.config import settings
 
@@ -46,7 +47,7 @@ async def download_file(
 async def secure_file_download(
     request: Request,
     token: str,
-    service: FileService = Depends(get_file_service)
+    service: PublicFileService = Depends(get_file_public_service)
 ):
     """
     Secure file download endpoint for external clients (like Bitrix).
@@ -118,6 +119,38 @@ async def delete_file_by_id(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.get(
+    "/by-vector-store/{vector_store_id}",
+    # response_model=list[FileOut],
+)
+@limiter.limit("60/minute")
+async def get_files_for_vector_store(
+    vector_store_id: str,
+    request: Request,
+    service: FileService = Depends(get_file_service),
+):
+    """
+    Return all files attached to a given vector store,
+    enriched with your DB metadata.
+    """
+    return await service.get_files_for_vector_store(vector_store_id)
+
+
+@router.get(
+    "/by-storage_key/{storage_key}"
+)
+@limiter.limit("60/minute")
+async def get_file_by_storage_key(
+    storage_key: str,
+    request: Request,
+    service: FileService = Depends(get_file_service),
+):
+    """
+    Return a single file by its OpenAI storage key (file_id),
+    using DB + OpenAI metadata.
+    """
+    return await service.get_by_storage_key(storage_key)
+
 # ================================
 # Yandex Object Storage (S3) CRUD
 # ================================
@@ -143,21 +176,3 @@ def yandex_list_objects(
     service: FileService = Depends(get_file_service)
 ):
     return service.list_objects(bucket)
-
-
-@router.get(
-    "/yandex/buckets/{bucket}/objects/{key:path}",
-    summary="Download object from Yandex (Read)"
-)
-@limiter.limit("30/minute")
-async def yandex_download_object(
-    request: Request,
-    bucket: str,
-    key: str,
-    service: FileService = Depends(get_file_service)
-):
-    """
-    The service decides whether to return a StreamingResponse,
-    raw bytes, or a dict/presigned URL. API stays stable.
-    """
-    return await service.download_object(bucket=bucket, key=key)

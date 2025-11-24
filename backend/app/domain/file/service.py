@@ -262,7 +262,15 @@ class FileService:
             media_type=file.content_type or "application/octet-stream",
             headers=headers
         )
-        
+    
+    async def get_files_for_vector_store(self, vector_store_id: str):
+        """Get vector store files."""
+        return await self.manager.list_vector_store_files(vector_store_id)
+    
+    async def get_by_storage_key(self, storage_key: str):
+        """Get vector store files."""
+        return await self.manager.retrieve_file(storage_key)
+
     def list_buckets(self):
 
         return self.s3_client.list_buckets()

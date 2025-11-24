@@ -114,7 +114,7 @@ def requires_rehash(hashed_password: str) -> bool:
     return argon_hasher.check_needs_rehash(hashed_password)
 
 
-def create_temporary_access_token(file_id: int, expire_hours: int = 24) -> str:
+def create_temporary_access_token(file_id: int, expire_hours: int = 168) -> str:
     """
     Create a temporary JWT token with configurable expiration.
     
