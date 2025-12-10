@@ -25,6 +25,7 @@ class FileBucketService:
         self.manager = manager
         self.s3_client = s3_client
         self.converter = converter
+        self.bitrix_sync_vc = 'vs_69391c1a7fa48191b0b85507ec974753'
 
     async def process_yandex_messages(self, payload: dict) -> None:
         messages = payload.get("messages", [])
@@ -57,7 +58,7 @@ class FileBucketService:
             s3_bucket=bucket,
             s3_object_key=s3_key,
             name=s3_key.split("/")[-1],
-            vector_store_id=None,
+            vector_store_id=self.bitrix_sync_vc,
             origin=FileOrigin.S3_IMPORT,
             status=FileState.STORED,
         )
