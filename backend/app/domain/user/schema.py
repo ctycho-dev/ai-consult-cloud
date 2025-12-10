@@ -75,11 +75,6 @@ class UserOut(BaseModel):
     external_id: str | None
     source: str | None
 
-    # @field_serializer('created_at')
-    # def serialize_created_at(self, created_at: datetime) -> str:
-    #     """Convert `created_at` to ISO 8601 string during serialization."""
-    #     return created_at.isoformat()
-
     @staticmethod
     def _iso(dt: datetime) -> str:
         return dt.isoformat()

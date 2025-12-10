@@ -350,7 +350,7 @@ class FileService:
         # 7. Final update
         final_doc = await self.repo.update(self.db, doc_id, {
             "storage_key": openai_file.id,
-            "status": FileState.INDEXED
+            "status": FileState.INDEXING
         })
 
         return final_doc, openai_path

@@ -176,3 +176,49 @@ def yandex_list_objects(
     service: FileService = Depends(get_file_service)
 ):
     return service.list_objects(bucket)
+
+
+from pathlib import Path
+import json
+from datetime import datetime
+
+LOG_DIR = Path("/var/log/yandex_events")  # or /tmp/yandex_events
+LOG_DIR.mkdir(exist_ok=True, parents=True)
+
+
+@router.post("/yandex/storage-event")
+@limiter.limit("100/minute")
+async def yandex_storage_event(
+    request: Request,
+):
+    """
+    Webhook endpoint for Yandex Object Storage trigger events.
+    Receives create/delete events and queues them for processing.
+    """
+    # Get raw body and headers
+    # body = await request.body()
+    headers = dict(request.headers)
+    
+    # Parse JSON payload
+    try:
+        payload = await request.json()
+    except Exception as e:
+        logger.error(f"Failed to parse Yandex event: {e}")
+        return {"status": "error", "message": "Invalid JSON"}
+    
+    # Log to file for inspection
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    log_file = LOG_DIR / f"event_{timestamp}.json"
+    
+    log_data = {
+        "timestamp": datetime.now().isoformat(),
+        "headers": headers,
+        "payload": payload,
+    }
+
+    with open(log_file, 'w', encoding='utf-8') as f:
+        json.dump(log_data, f, indent=2, ensure_ascii=False)
+
+    logger.info(f"Yandex event saved to {log_file}")
+
+    return {"status": "received", "logged": str(log_file)}

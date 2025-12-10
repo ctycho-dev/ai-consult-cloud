@@ -60,6 +60,7 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
 
 
     useEffect(() => {
+        console.log("Fetched storages:", data);
         if (data) setStorages(data)
     }, [data]);
 
@@ -172,6 +173,7 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                 <thead>
                     <tr className="border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Название</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Vector Store ID</th>
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Создано</th>
                         <th className="h-12 px-4 align-middle font-medium text-muted-foreground text-right">Действия</th>
                     </tr>
@@ -190,6 +192,7 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                                         )}
                                     </div>
                                 </td>
+                                <td className="p-4 align-middle">{item.vector_store_id}</td>
                                 <td className="p-4 align-middle">{item.created_at.split('T')[0]}</td>
                                 <td className="p-4 align-middle text-right relative">
                                     <Menu shadow="md" width={250}>
