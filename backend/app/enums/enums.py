@@ -56,7 +56,9 @@ class FileState(str, Enum):
     STORED = "stored"
     INDEXING = "indexing"
     INDEXED = "indexed"
-    FAILED = "failed"
+    DELETING = "deleting"
+    UPLOAD_FAILED = "upload_failed"
+    DELETE_FAILED = "delete_failed"
 
 
 class DeleteStatus(str, Enum):

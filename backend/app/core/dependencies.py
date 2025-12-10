@@ -15,6 +15,7 @@ from app.domain.storage.repository import StorageRepository
 from app.domain.file.repository import FileRepository
 from app.domain.file.service import FileService
 from app.domain.file.service_public import PublicFileService
+from app.domain.file.bucket_service import FileBucketService
 from app.domain.user.service import UserService
 from app.domain.user.repository import UserRepository
 from app.domain.user.schema import UserOut
@@ -163,6 +164,23 @@ def get_file_public_service(
         db=db,
         repo=repo,
         s3_client=yandex_s3_client,
+    )
+
+
+def get_file_bucket_service(
+    db: AsyncSession = Depends(get_db),
+    repo: FileRepository = Depends(get_file_repo),
+    openai_manager: OpenAIManager = Depends(get_openai_manager),
+    yandex_s3_client: YandexS3Client = Depends(get_yandex_s3_client),
+    converter: FileConverter = Depends(get_file_converter)
+) -> FileBucketService:
+
+    return FileBucketService(
+        db=db,
+        repo=repo,
+        manager=openai_manager,
+        s3_client=yandex_s3_client,
+        converter=converter
     )
 
 

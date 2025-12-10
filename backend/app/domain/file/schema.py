@@ -22,9 +22,11 @@ class FileCreate(BaseModel):
     vector_store_id: str | None = None
     size: int | None = None
     content_type: str | None = None
+    origin: FileOrigin = FileOrigin.UPLOAD
+    status: FileState = FileState.PENDING
 
-    # Canonical S3 location (required for DB → S3 → OpenAI flow)
     s3_bucket: str
+    s3_object_key: str | None = None
     sha256: str | None = None
 
     model_config = ConfigDict(populate_by_name=True)

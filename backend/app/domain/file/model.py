@@ -45,9 +45,9 @@ class File(Base, FullAuditMixin):
     last_error: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     # ---- Delete ----
-    delete_status: Mapped[DeleteStatus] = mapped_column(
-        SQLEnum(DeleteStatus), default=DeleteStatus.PENDING, nullable=False
-    )
+    # delete_status: Mapped[DeleteStatus] = mapped_column(
+    #     SQLEnum(DeleteStatus), default=DeleteStatus.PENDING, nullable=False
+    # )
     deleted_openai: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deleted_s3: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     last_delete_error: Mapped[Optional[str]] = mapped_column(String, nullable=True)

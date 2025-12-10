@@ -65,6 +65,36 @@ class FileRepository(BaseRepository[File, FileOut, FileCreate]):
             return FileOut.model_validate(file_entity)
         except Exception as e:
             raise DatabaseError(f"Failed to retrieve file by storage key '{storage_key}': {str(e)}") from e
+        
+    async def get_by_s3_object_key(
+        self,
+        db: AsyncSession,
+        s3_object_key: str
+    ) -> Optional[FileOut]:
+        """
+        Retrieve a file entity by its storage key.
+
+        Args:
+            db (AsyncSession): The database session.
+            storage_key (str): The storage key of the file entity to retrieve.
+
+        Returns:
+            Optional[FileOut]: The file entity if found, otherwise None.
+
+        Raises:
+            DatabaseError: If there is an issue with the database operation.
+        """
+        try:
+            result = await db.execute(
+                select(File).where(File.s3_object_key == s3_object_key)
+            )
+            file_entity = result.scalar_one_or_none()
+            if not file_entity:
+                return None
+            
+            return FileOut.model_validate(file_entity)
+        except Exception as e:
+            raise DatabaseError(f"Failed to retrieve file by s3 key '{s3_object_key}': {str(e)}") from e
     
     async def get_by_storage_id(
         self, 

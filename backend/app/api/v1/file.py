@@ -6,8 +6,13 @@ from app.middleware.rate_limiter import limiter
 from app.domain.file.schema import FileOut
 from app.domain.file.service import FileService
 from app.domain.file.service_public import PublicFileService
+from app.domain.file.bucket_service import FileBucketService
 from app.utils.oauth2 import validate_file_access_token
-from app.core.dependencies import get_file_service, get_file_public_service
+from app.core.dependencies import (
+    get_file_service,
+    get_file_public_service,
+    get_file_bucket_service
+)
 from app.core.logger import get_logger
 from app.core.config import settings
 
@@ -182,7 +187,7 @@ from pathlib import Path
 import json
 from datetime import datetime
 
-LOG_DIR = Path("/var/log/yandex_events")  # or /tmp/yandex_events
+LOG_DIR = Path("/var/log/yandex_events")
 LOG_DIR.mkdir(exist_ok=True, parents=True)
 
 
@@ -190,35 +195,18 @@ LOG_DIR.mkdir(exist_ok=True, parents=True)
 @limiter.limit("100/minute")
 async def yandex_storage_event(
     request: Request,
+    service: FileBucketService = Depends(get_file_bucket_service)
 ):
     """
     Webhook endpoint for Yandex Object Storage trigger events.
     Receives create/delete events and queues them for processing.
     """
-    # Get raw body and headers
-    # body = await request.body()
-    headers = dict(request.headers)
-    
-    # Parse JSON payload
     try:
         payload = await request.json()
+        print(payload)
+        await service.process_yandex_messages(payload)
     except Exception as e:
         logger.error(f"Failed to parse Yandex event: {e}")
         return {"status": "error", "message": "Invalid JSON"}
     
-    # Log to file for inspection
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    log_file = LOG_DIR / f"event_{timestamp}.json"
-    
-    log_data = {
-        "timestamp": datetime.now().isoformat(),
-        "headers": headers,
-        "payload": payload,
-    }
-
-    with open(log_file, 'w', encoding='utf-8') as f:
-        json.dump(log_data, f, indent=2, ensure_ascii=False)
-
-    logger.info(f"Yandex event saved to {log_file}")
-
-    return {"status": "received", "logged": str(log_file)}
+    return {"status": "ok"}
