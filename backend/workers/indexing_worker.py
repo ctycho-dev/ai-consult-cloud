@@ -2,7 +2,7 @@
 import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from openai import APIError, NotFoundError
+from openai import APIError, NotFoundError, AsyncOpenAI
 
 from app.domain.file.model import File
 from app.domain.file.repository import FileRepository
@@ -24,7 +24,12 @@ async def check_indexing_status():
 
     async with AsyncSession(engine) as session:
         file_repo = FileRepository()
-        openai = OpenAIManager()
+        openai_client = AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=70
+        )
+
+        openai = OpenAIManager(openai_client, file_repo)
 
         # Get files being indexed
         stmt = select(File).where(File.status == FileState.INDEXING).limit(20)

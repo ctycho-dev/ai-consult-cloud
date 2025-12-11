@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from openai import APIError
+from openai import APIError, AsyncOpenAI
 
 from app.domain.file.model import File
 from app.domain.file.repository import FileRepository
@@ -28,8 +28,13 @@ async def process_upload_batch():
     
     async with AsyncSession(engine) as session:
         file_repo = FileRepository()
+        openai_client = AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=70
+        )
+
+        openai = OpenAIManager(openai_client, file_repo)
         s3_client = YandexS3Client()
-        openai = OpenAIManager()
         converter = FileConverter()
         
         # Get files to upload

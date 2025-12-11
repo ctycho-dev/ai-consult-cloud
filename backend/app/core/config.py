@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 def get_env_file():
     mode = os.getenv('mode', 'prod')
     return '../.env.dev' if mode in ['dev', 'test'] else '.env'
+    # return '../.env.dev' if mode in ['dev', 'test'] else '../.env'
     # return f'../.env.{mode}' if mode in ['dev', 'test'] else '.env'
 
 

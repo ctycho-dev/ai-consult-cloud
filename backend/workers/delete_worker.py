@@ -2,7 +2,7 @@
 import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from openai import NotFoundError, APIError
+from openai import NotFoundError, APIError, AsyncOpenAI
 
 from app.domain.file.model import File
 from app.domain.file.repository import FileRepository
@@ -10,6 +10,7 @@ from app.enums.enums import FileState
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.core.config import settings
 from app.core.logger import get_logger
+from app.core.dependencies import get_db, get_openai_manager
 
 logger = get_logger('app.delete_worker')
 
@@ -23,8 +24,14 @@ async def process_deletions():
     engine = create_async_engine(settings.DATABASE_URL)
     
     async with AsyncSession(engine) as session:
+
         file_repo = FileRepository()
-        openai = OpenAIManager()
+        openai_client = AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            timeout=70
+        )
+
+        openai = OpenAIManager(openai_client, file_repo)
         
         # Get files to delete
         stmt = select(File).where(File.status == FileState.DELETING).limit(5)
@@ -67,7 +74,7 @@ async def process_deletions():
                     {"status": FileState.DELETE_FAILED, "last_error": str(e)}
                 )
 
-        logger.info("Delete worker completed")
+    logger.info("Delete worker completed")
 
 if __name__ == "__main__":
     asyncio.run(process_deletions())
