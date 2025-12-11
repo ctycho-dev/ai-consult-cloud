@@ -267,9 +267,9 @@ class FileService:
         """Get vector store files."""
         return await self.manager.list_vector_store_files(vector_store_id)
     
-    async def get_by_storage_key(self, storage_key: str):
+    async def get_by_storage_key(self, vector_store_id: str, storage_key: str):
         """Get vector store files."""
-        return await self.manager.retrieve_file(storage_key)
+        return await self.manager.retrieve_file(vector_store_id, storage_key)
 
     def list_buckets(self):
 

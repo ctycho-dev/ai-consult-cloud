@@ -252,17 +252,16 @@ class OpenAIManager:
             if not after:
                 break
 
-        print('result len', len(all_files))
         res = [file for file in all_files if file.status != 'completed']
         return res  # result.data is list[VectorStoreFile] [web:21][web:35]
 
     @log_timing("OpenAI:retrieve_file")
-    async def retrieve_file(self, file_id: str):
+    async def retrieve_file(self, vector_store_id: str, file_id: str):
         """
         Retrieve OpenAI file metadata by file id.
         """
         vs_file = await self.client.vector_stores.files.retrieve(
-            vector_store_id='vs_690cb6b0c6dc81919f7a67a2cdf17025',
+            vector_store_id=vector_store_id,
             file_id=file_id,
         )
         return vs_file

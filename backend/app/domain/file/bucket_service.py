@@ -47,7 +47,6 @@ class FileBucketService:
     async def _handle_create(self, bucket: str, s3_key: str) -> None:
         existing = await self.repo.get_by_s3_object_key(self.db, s3_key)
         if existing:
-            # optional: if it was DELETING and recreated, reset to STORED
             if existing.status == FileState.DELETING:
                 existing.status = FileState.STORED
                 existing.origin = FileOrigin.S3_IMPORT

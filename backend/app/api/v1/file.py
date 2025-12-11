@@ -142,10 +142,11 @@ async def get_files_for_vector_store(
 
 
 @router.get(
-    "/by-storage_key/{storage_key}"
+    "/vs_file/{storage_key}"
 )
 @limiter.limit("60/minute")
 async def get_file_by_storage_key(
+    vector_store_id: str,
     storage_key: str,
     request: Request,
     service: FileService = Depends(get_file_service),
@@ -154,7 +155,7 @@ async def get_file_by_storage_key(
     Return a single file by its OpenAI storage key (file_id),
     using DB + OpenAI metadata.
     """
-    return await service.get_by_storage_key(storage_key)
+    return await service.get_by_storage_key(vector_store_id, storage_key)
 
 # ================================
 # Yandex Object Storage (S3) CRUD
@@ -203,7 +204,6 @@ async def yandex_storage_event(
     """
     try:
         payload = await request.json()
-        print(payload)
         await service.process_yandex_messages(payload)
     except Exception as e:
         logger.error(f"Failed to parse Yandex event: {e}")
