@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from openai import APIError, NotFoundError, AsyncOpenAI
 
 from app.domain.file.model import File
+from app.domain.user.model import User
 from app.domain.file.repository import FileRepository
 from app.enums.enums import FileState
 from app.infrastructure.llm.openai_manager import OpenAIManager
@@ -40,8 +41,6 @@ async def check_indexing_status():
             logger.info("No files in indexing state")
             return
 
-        logger.info(f"Checking indexing status for {len(files)} files")
-
         for file in files:
             try:
                 if not file.storage_key or not file.vector_store_id:
@@ -61,7 +60,7 @@ async def check_indexing_status():
                     file.vector_store_id,
                     file.storage_key
                 )
-                
+
                 # OpenAI file status: "in_progress", "completed", "cancelled", "failed"
                 if vs_file.status == "completed":
                     await file_repo.update(

@@ -39,10 +39,10 @@ async def process_deletions():
         files = result.scalars().all()
         
         if not files:
-            print("No files to delete")
+            logger.info("No files to delete")
             return
         
-        print(f"Processing {len(files)} files for deletion")
+        logger.info(f"Processing {len(files)} files for deletion")
         
         for file in files:
             try:
@@ -77,7 +77,7 @@ async def process_deletions():
                     update_data={"status": FileState.DELETE_FAILED, "last_error": str(e)}
                 )
 
-    print("Delete worker completed")
+    logger.info("Delete worker completed")
 
 if __name__ == "__main__":
     asyncio.run(process_deletions())

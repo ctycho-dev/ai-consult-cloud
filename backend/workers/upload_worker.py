@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from openai import APIError, AsyncOpenAI
 
 from app.domain.file.model import File
+from app.domain.user.model import User
 from app.domain.file.repository import FileRepository
 from app.enums.enums import FileState, FileOrigin
 from app.infrastructure.llm.openai_manager import OpenAIManager
@@ -124,7 +125,7 @@ async def process_upload_batch():
                         "last_error": str(e)
                     }
                 )
-            
+
             finally:
                 if tmp_path and tmp_path.exists():
                     try:
