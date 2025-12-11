@@ -26,7 +26,7 @@ async def process_upload_batch():
     """
     engine = create_async_engine(settings.DATABASE_URL)
     
-    async with AsyncSession(engine) as session:
+    async with AsyncSession(engine, expire_on_commit=False) as session:
         file_repo = FileRepository()
         openai_client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,

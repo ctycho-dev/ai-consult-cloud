@@ -23,7 +23,7 @@ async def process_deletions():
     """
     engine = create_async_engine(settings.DATABASE_URL)
     
-    async with AsyncSession(engine) as session:
+    async with AsyncSession(engine, expire_on_commit=False) as session:
 
         file_repo = FileRepository()
         openai_client = AsyncOpenAI(
@@ -39,42 +39,45 @@ async def process_deletions():
         files = result.scalars().all()
         
         if not files:
-            logger.info("No files to delete")
+            print("No files to delete")
             return
         
-        logger.info(f"Processing {len(files)} files for deletion")
+        print(f"Processing {len(files)} files for deletion")
         
         for file in files:
             try:
                 # Try to delete from OpenAI if storage_key exists
                 if file.storage_key:
+                    if not file.vector_store_id:
+                        raise ValueError("Missing vector_store_id for OpenAI deletion")
+
                     try:
-                        await openai.delete_file(file.storage_key)
-                        logger.info(f"Deleted from OpenAI: {file.storage_key}")
+                        await openai.delete_file(file.vector_store_id, file.storage_key)
+                        logger.info(f"✓ Deleted from OpenAI: {file.storage_key}")
                     except NotFoundError:
-                        # 404 is GOOD - file already gone or never uploaded
-                        logger.info(f"File not found in OpenAI (OK): {file.storage_key}")
+                        logger.info(f"✓ File not found in OpenAI (already deleted): {file.storage_key}")
                     except APIError as e:
-                        # Other OpenAI errors (rate limit, network, etc)
-                        logger.error(f"OpenAI API error for {file.storage_key}: {e}")
+                        # OpenAI API error - mark failed and skip DB deletion
+                        logger.error(f"✗ OpenAI API error for {file.storage_key}: {e}")
                         await file_repo.update(
-                            session,
-                            file.id,
-                            {"status": FileState.DELETE_FAILED, "last_error": str(e)}
+                            db=session,
+                            _id=file.id,
+                            update_data={"status": FileState.DELETE_FAILED, "last_error": str(e)}
                         )
                         continue
                 
-                await file_repo.delete_by_id(session, file.id)
-                logger.info(f"Deleted from DB: {file.name} ({file.s3_object_key})")
+                # Step 2: Delete from DB (only if OpenAI delete succeeded or no storage_key)
+                await file_repo.delete_by_id(db=session, _id=file.id)
+                logger.info(f"✓ Deleted from DB: {file.name} ({file.s3_object_key})")
             except Exception as e:
                 logger.error(f"Failed to delete {file.name}: {e}")
                 await file_repo.update(
-                    session,
-                    file.id,
-                    {"status": FileState.DELETE_FAILED, "last_error": str(e)}
+                    db=session,
+                    _id=file.id,
+                    update_data={"status": FileState.DELETE_FAILED, "last_error": str(e)}
                 )
 
-    logger.info("Delete worker completed")
+    print("Delete worker completed")
 
 if __name__ == "__main__":
     asyncio.run(process_deletions())
