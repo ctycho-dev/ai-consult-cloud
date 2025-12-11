@@ -337,13 +337,13 @@ const FileItem: React.FC<FileItemProps> = ({
         <tr className="border-b border-border transition-colors hover:bg-muted/50">
             <td className="p-4 align-middle">
                 <div className="flex items-center gap-3">
-                    <FileIcon contentType={item.contentType} />
+                    <FileIcon contentType={item.contentType ? item.contentType : ''} />
                     <div>
                         <div className="font-medium">{item.name}</div>
                     </div>
                 </div>
             </td>
-            <td className="p-4 align-middle">{formatFileSize(item.size)}</td>
+            <td className="p-4 align-middle">{item.size ? formatFileSize(item.size) : ''}</td>
             <td className="p-4">{storageName || "—"}</td>
             <td className="p-4 align-middle">
                 {item.createdAt

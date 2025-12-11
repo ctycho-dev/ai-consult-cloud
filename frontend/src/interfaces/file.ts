@@ -63,3 +63,13 @@ export interface IGlobalFileRequest {
 export interface IDownloadFile {
   downloadUrl: string;
 }
+
+export interface IFileStats {
+  stored: number;
+  indexing: number;
+  indexed: number;
+  upload_failed: number;
+  delete_failed: number;
+  deleting: number;
+  total: number;
+}

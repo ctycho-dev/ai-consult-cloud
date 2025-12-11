@@ -125,6 +125,22 @@ async def delete_file_by_id(
 
 
 @router.get(
+    "/stats/{vector_store_id}",
+)
+@limiter.limit("60/minute")
+async def get_stats(
+    vector_store_id: str,
+    request: Request,
+    service: FileService = Depends(get_file_service),
+):
+    """
+    Return all files attached to a given vector store,
+    enriched with your DB metadata.
+    """
+    return await service.get_stats_by_vector_store(vector_store_id)
+
+
+@router.get(
     "/by-vector-store/{vector_store_id}",
     # response_model=list[FileOut],
 )
@@ -182,14 +198,6 @@ def yandex_list_objects(
     service: FileService = Depends(get_file_service)
 ):
     return service.list_objects(bucket)
-
-
-from pathlib import Path
-import json
-from datetime import datetime
-
-LOG_DIR = Path("/var/log/yandex_events")
-LOG_DIR.mkdir(exist_ok=True, parents=True)
 
 
 @router.post("/yandex/storage-event")

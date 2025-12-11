@@ -271,6 +271,15 @@ class FileService:
         """Get vector store files."""
         return await self.manager.retrieve_file(vector_store_id, storage_key)
 
+    async def get_stats_by_vector_store(
+        self, vector_store_id: str
+    ) -> dict[str, int]:
+        rows = await self.repo.get_stats_by_vector_store(
+            self.db,
+            vector_store_id
+        )
+        return rows
+
     def list_buckets(self):
 
         return self.s3_client.list_buckets()

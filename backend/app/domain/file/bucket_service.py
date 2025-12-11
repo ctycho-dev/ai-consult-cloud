@@ -1,3 +1,5 @@
+import asyncio
+import mimetypes
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.file.repository import FileRepository
 from app.domain.file.schema import FileCreate
@@ -52,11 +54,21 @@ class FileBucketService:
                 existing.origin = FileOrigin.S3_IMPORT
                 await self.repo.update(self.db, existing.id, existing)
             return
+        
+        s3_metadata = await asyncio.to_thread(
+            self.s3_client.get_object_metadata,
+            bucket=bucket,
+            key=s3_key
+        )
+        file_size = s3_metadata.get('ContentLength', 0)
+        content_type = s3_metadata.get('ContentType') or mimetypes.guess_type(s3_key)[0] or 'application/octet-stream'
 
         file = FileCreate(
             s3_bucket=bucket,
             s3_object_key=s3_key,
             name=s3_key.split("/")[-1],
+            size=file_size,
+            content_type=content_type,
             vector_store_id=self.bitrix_sync_vc,
             origin=FileOrigin.S3_IMPORT,
             status=FileState.STORED,

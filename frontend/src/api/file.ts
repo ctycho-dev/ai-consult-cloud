@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { IGlobalFileRequest, IFile } from "@/interfaces/file";
+import { IGlobalFileRequest, IFile, IFileStats } from "@/interfaces/file";
 
 export const fileApi = createApi({
 	reducerPath: 'fileApi',
@@ -19,6 +19,9 @@ export const fileApi = createApi({
 
 		getFile: builder.query<IFile, number>({
 			query: (fileId: number) => `/${fileId}`,
+		}),
+		getStats: builder.query<IFileStats, string>({
+			query: (vc_id: string) => `/stats/${vc_id}`,
 		}),
 		uploadFile: builder.mutation<IFile, IGlobalFileRequest>({
 			query({ ...rest }) {
@@ -116,6 +119,7 @@ export const fileApi = createApi({
 export const {
 	useGetFilesQuery,
 	useGetFileQuery,
+	useGetStatsQuery,
 	useDownloadFileMutation,
 	useUploadFileMutation,
 	useDeleteFileMutation

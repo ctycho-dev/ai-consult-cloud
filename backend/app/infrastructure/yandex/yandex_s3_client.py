@@ -163,3 +163,15 @@ class YandexS3Client:
             Params={"Bucket": bucket, "Key": key},
             ExpiresIn=expires_in,
         )
+
+    def get_object_metadata(self, bucket: str, key: str) -> dict:
+        """
+        Get object metadata (size, content-type, etag, etc.) without downloading.
+        
+        Returns:
+            dict with keys: ContentLength, ContentType, ETag, LastModified, etc.
+        
+        Raises:
+            ClientError: If object doesn't exist or access denied.
+        """
+        return self._s3.head_object(Bucket=bucket, Key=key)

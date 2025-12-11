@@ -2,7 +2,7 @@
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 
 from app.exceptions.exceptions import DatabaseError
 from app.common.base_repository import BaseRepository
@@ -97,8 +97,8 @@ class FileRepository(BaseRepository[File, FileOut, FileCreate]):
             raise DatabaseError(f"Failed to retrieve file by s3 key '{s3_object_key}': {str(e)}") from e
     
     async def get_by_storage_id(
-        self, 
-        db: AsyncSession, 
+        self,
+        db: AsyncSession,
         storage_id: str
     ) -> List[FileOut]:
         """
@@ -188,3 +188,36 @@ class FileRepository(BaseRepository[File, FileOut, FileCreate]):
             return FileOut.model_validate(file_entity, from_attributes=True)
         except Exception as e:
             raise DatabaseError(f"Failed to fetch file by SHA256 '{sha256}': {str(e)}") from e
+
+    async def get_stats_by_vector_store(self, db: AsyncSession, vector_store_id: str) -> dict:
+        """Get file count statistics for a vector store grouped by status."""
+        stmt = (
+            select(
+                File.status,
+                func.count(File.id).label('count')
+            )
+            .where(File.vector_store_id == vector_store_id)
+            .group_by(File.status)
+        )
+        
+        result = await db.execute(stmt)
+        rows = result.all()
+        
+        stats = {
+            "stored": 0,
+            "indexing": 0,
+            "indexed": 0,
+            "upload_failed": 0,
+            "delete_failed": 0,
+            "deleting": 0,
+        }
+        
+        total = 0
+        for row in rows:
+            status_key = row.status.value.lower()  # Assuming enum has .value
+            if status_key in stats:
+                stats[status_key] = int(row.count)
+                total += int(row.count)
+        
+        stats["total"] = total
+        return stats
