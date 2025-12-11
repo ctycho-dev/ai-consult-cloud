@@ -34,7 +34,7 @@ def main():
     # Worker 3: Process deletions every 5 minutes
     scheduler.add_job(
         process_deletions,
-        IntervalTrigger(minutes=2),
+        IntervalTrigger(minutes=3),
         id='delete_worker',
         max_instances=1
     )

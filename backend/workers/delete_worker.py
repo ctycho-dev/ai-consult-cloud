@@ -10,11 +10,13 @@ from app.enums.enums import FileState
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.core.config import settings
 from app.core.logger import get_logger
-from app.core.dependencies import get_db, get_openai_manager
+from app.core.decorators import log_timing
+
 
 logger = get_logger('app.delete_worker')
 
 
+@log_timing('delete_worker.process_deletions')
 async def process_deletions():
     """
     Query files with status=DELETING

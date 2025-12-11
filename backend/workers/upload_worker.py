@@ -15,11 +15,12 @@ from app.infrastructure.yandex.yandex_s3_client import YandexS3Client
 from app.infrastructure.file_converter.file_converter import FileConverter
 from app.core.config import settings
 from app.core.logger import get_logger
+from app.core.decorators import log_timing
 
 
 logger = get_logger('app.upload_worker')
 
-
+@log_timing('upload_worker.process_upload_batch')
 async def process_upload_batch():
     """
     Query files with status=STORED AND origin=S3_IMPORT

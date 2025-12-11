@@ -11,10 +11,11 @@ from app.enums.enums import FileState
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.core.config import settings
 from app.core.logger import get_logger
+from app.core.decorators import log_timing
 
 logger = get_logger('app.indexing_worker')
 
-
+@log_timing('indexing_worker.check_indexing_status')
 async def check_indexing_status():
     """
     Query files with status=INDEXING
