@@ -13,6 +13,9 @@ logger = get_logger('app.scheduler')
 
 
 def main():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     scheduler = AsyncIOScheduler()
 
     # Worker 1: Upload to OpenAI every 2 minutes
@@ -43,10 +46,12 @@ def main():
     logger.info("APScheduler started with 3 workers")
 
     try:
-        asyncio.get_event_loop().run_forever()
+        loop.run_forever()
     except (KeyboardInterrupt, SystemExit):
         scheduler.shutdown()
         logger.info("Scheduler shut down")
+    finally:
+        loop.close()
 
 
 if __name__ == "__main__":
