@@ -16,7 +16,7 @@ def main():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    scheduler = AsyncIOScheduler()
+    scheduler = AsyncIOScheduler(event_loop=loop)
 
     # Worker 1: Upload to OpenAI every 2 minutes
     # scheduler.add_job(
