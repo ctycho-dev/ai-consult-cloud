@@ -12,5 +12,3 @@ RUN chmod +x start.sh
 
 # Expose port 80
 EXPOSE 8000
-
-CMD ["./start.sh"]

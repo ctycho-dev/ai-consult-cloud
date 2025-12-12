@@ -5,6 +5,7 @@ import {
     useDeleteStorageMutation,
     useUpdateStorageMutation
 } from "@/api/storage";
+import { Role } from "@/enums/enums";
 import { useSelectStorageMutation } from "@/api/user";
 import { useGetStatsQuery } from "@/api/file";
 import { IUserSelectStorage } from "@/interfaces/user";
@@ -147,14 +148,16 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
         <div className="border border-border rounded-md bg-card p-4">
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold mb-1">Хранилище</h2>
-                <Button
-                    variant="filled"
-                    color="green"
-                    onClick={() => setIsCreateModalOpen(true)}
-                >
-                    <MdOutlineFileUpload className="text-xl mr-2" />
-                    <span>Создать хранилище</span>
-                </Button>
+                {user?.role == Role.ADMIN &&
+                    <Button
+                        variant="filled"
+                        color="green"
+                        onClick={() => setIsCreateModalOpen(true)}
+                    >
+                        <MdOutlineFileUpload className="text-xl mr-2" />
+                        <span>Создать хранилище</span>
+                    </Button>
+                }
             </div>
 
             <table className="w-full caption-bottom text-sm">
@@ -210,16 +213,18 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                                                     {loadingStates[item.id] ? 'Установка...' : 'Установить по умолчанию'}
                                                 </Menu.Item>
                                             )}
-                                            <Menu.Item
-                                                color="red"
-                                                leftSection={<IconTrash size={14} />}
-                                                onClick={() => {
-                                                    setSelectedStorageId(item.id);
-                                                    setIsDeleteModalOpen(true);
-                                                }}
-                                            >
-                                                Удалить
-                                            </Menu.Item>
+                                            {user?.role == Role.ADMIN &&
+                                                <Menu.Item
+                                                    color="red"
+                                                    leftSection={<IconTrash size={14} />}
+                                                    onClick={() => {
+                                                        setSelectedStorageId(item.id);
+                                                        setIsDeleteModalOpen(true);
+                                                    }}
+                                                >
+                                                    Удалить
+                                                </Menu.Item>
+                                            }
                                         </Menu.Dropdown>
                                     </Menu>
                                 </td>

@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { GloblaFile } from "./components/tabFiles";
-// import { General } from "./components/general";
+// import { General } from "./components/tabGeneral";
 import { TabUsers } from "./components/tabUsers";
-import { TabAgent } from "./components/tabAgent";
 import { TabStorge } from "./components/tabStorage";
 import { useAuth } from "@/components/authProvider";
-import { SiGoogleassistant } from "react-icons/si";
 import { TiCloudStorage } from "react-icons/ti";
 import { Role } from "@/enums/enums";
 import { FiUsers } from "react-icons/fi";
@@ -25,26 +23,12 @@ interface TabItem {
 
 const allTabs: TabItem[] = [
     // {
-    //     label: 'Общее',
-    //     value: 'general',
-    //     icon: null,
-    //     menu: <General />,
+    //     label: 'Файлы',
+    //     value: 'files',
+    //     icon: <LuFiles />,
+    //     menu: <GloblaFile />,
     //     roles: [Role.ADMIN, Role.USER]
     // },
-    // {
-    //     label: 'Agents',
-    //     value: 'agents',
-    //     icon: <SiGoogleassistant />,
-    //     menu: <TabAgent />,
-    //     roles: [Role.ADMIN]
-    // },
-    {
-        label: 'Файлы',
-        value: 'files',
-        icon: <LuFiles />,
-        menu: <GloblaFile />,
-        roles: [Role.ADMIN, Role.USER]
-    },
     {
         label: 'Пользователи',
         value: 'users',
@@ -64,7 +48,7 @@ const allTabs: TabItem[] = [
 const SettingsView: React.FC<SettingsViewProps> = ({ }) => {
     const { user } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
-    const [activeTab, setActiveTab] = useState('files');
+    const [activeTab, setActiveTab] = useState('storage');
     const [activeTabContent, setActiveTabContent] = useState<React.ReactNode>(<GloblaFile />);
     // const [activeTabContent, setActiveTabContent] = useState<React.ReactNode>(<General />);
     const [filteredTabs, setFilteredTabs] = useState<TabItem[]>([]);
@@ -74,7 +58,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ }) => {
         const tabParam = searchParams.get('tab');
         const initialTab = tabParam && allTabs.some(tab => tab.value === tabParam)
             ? tabParam
-            : 'files';
+            : 'storage';
 
         setActiveTab(initialTab);
     }, []);

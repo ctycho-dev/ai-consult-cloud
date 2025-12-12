@@ -16,20 +16,20 @@ def main():
     scheduler = AsyncIOScheduler()
 
     # Worker 1: Upload to OpenAI every 2 minutes
-    scheduler.add_job(
-        process_upload_batch,
-        IntervalTrigger(minutes=3),
-        id='upload_worker',
-        max_instances=1
-    )
+    # scheduler.add_job(
+    #     process_upload_batch,
+    #     IntervalTrigger(minutes=3),
+    #     id='upload_worker',
+    #     max_instances=1
+    # )
 
     # Worker 2: Check indexing status every 2 minutes
-    scheduler.add_job(
-        check_indexing_status,
-        IntervalTrigger(minutes=5),
-        id='indexing_worker',
-        max_instances=1
-    )
+    # scheduler.add_job(
+    #     check_indexing_status,
+    #     IntervalTrigger(minutes=5),
+    #     id='indexing_worker',
+    #     max_instances=1
+    # )
 
     # Worker 3: Process deletions every 5 minutes
     scheduler.add_job(
