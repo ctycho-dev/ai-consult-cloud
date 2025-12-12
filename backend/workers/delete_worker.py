@@ -1,4 +1,5 @@
 # workers/delete_worker.py
+import logging
 import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -9,11 +10,10 @@ from app.domain.file.repository import FileRepository
 from app.enums.enums import FileState
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.core.config import settings
-from app.core.logger import get_logger
 from app.core.decorators import log_timing
 
 
-logger = get_logger('app.delete_worker')
+logger = logging.getLogger('app.delete_worker')
 
 
 @log_timing('delete_worker.process_deletions')
@@ -78,8 +78,6 @@ async def process_deletions():
                     _id=file.id,
                     update_data={"status": FileState.DELETE_FAILED, "last_error": str(e)}
                 )
-
-    logger.info("Delete worker completed")
 
 if __name__ == "__main__":
     asyncio.run(process_deletions())

@@ -1,5 +1,6 @@
 import asyncio
-import os
+import logging
+import sys
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -7,14 +8,22 @@ from apscheduler.triggers.interval import IntervalTrigger
 from workers.indexing_worker import check_indexing_status
 from workers.upload_worker import process_upload_batch
 from workers.delete_worker import process_deletions
-from app.core.logger import setup_logging, get_logger
 
 
 def main():
-    # Initialize logging first
-    setup_logging()
-    logger = get_logger('app.scheduler')
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
     
+    # Quiet down noisy loggers
+    logging.getLogger('apscheduler').setLevel(logging.WARNING)
+    logging.getLogger('httpx').setLevel(logging.WARNING)
+    logging.getLogger('httpcore').setLevel(logging.WARNING)
+    
+    logger = logging.getLogger('app.scheduler')
     logger.info("🚀 Scheduler starting...")
 
     loop = asyncio.new_event_loop()
@@ -31,12 +40,12 @@ def main():
     )
 
     # Worker 2: Check indexing status every 2 minutes
-    # scheduler.add_job(
-    #     check_indexing_status,
-    #     IntervalTrigger(minutes=5),
-    #     id='indexing_worker',
-    #     max_instances=1
-    # )
+    scheduler.add_job(
+        check_indexing_status,
+        IntervalTrigger(minutes=5),
+        id='indexing_worker',
+        max_instances=1
+    )
 
     # Worker 3: Process deletions every 5 minutes
     scheduler.add_job(

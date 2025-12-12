@@ -1,5 +1,6 @@
 # workers/indexing_worker.py
 import asyncio
+import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from openai import APIError, NotFoundError, AsyncOpenAI
@@ -10,10 +11,11 @@ from app.domain.file.repository import FileRepository
 from app.enums.enums import FileState
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.core.config import settings
-from app.core.logger import get_logger
 from app.core.decorators import log_timing
 
-logger = get_logger('app.indexing_worker')
+
+logger = logging.getLogger('app.indexing_worker')
+
 
 @log_timing('indexing_worker.check_indexing_status')
 async def check_indexing_status():
@@ -45,7 +47,6 @@ async def check_indexing_status():
         for file in files:
             try:
                 if not file.storage_key or not file.vector_store_id:
-                    logger.warning(f"File {file.id} missing storage_key or vector_store_id")
                     await file_repo.update(
                         session,
                         file.id,
@@ -114,8 +115,6 @@ async def check_indexing_status():
                         "last_error": str(e)
                     }
                 )
-        
-        logger.info("Indexing status check completed")
 
 if __name__ == "__main__":
     asyncio.run(check_indexing_status())

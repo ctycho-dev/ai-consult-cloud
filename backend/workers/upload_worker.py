@@ -1,5 +1,6 @@
 # workers/upload_worker.py
 import asyncio
+import logging
 import tempfile
 from pathlib import Path
 from sqlalchemy import select, and_
@@ -14,11 +15,10 @@ from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.infrastructure.yandex.yandex_s3_client import YandexS3Client
 from app.infrastructure.file_converter.file_converter import FileConverter
 from app.core.config import settings
-from app.core.logger import get_logger
 from app.core.decorators import log_timing
 
 
-logger = get_logger('app.upload_worker')
+logger = logging.getLogger('app.upload_worker')
 
 
 @log_timing('upload_worker.process_upload_batch')
@@ -65,13 +65,11 @@ async def process_upload_batch():
             converted_path = None
 
             try:
-                # 1. Download from S3
-                logger.info(f"Downloading {file.s3_object_key} from S3")
                 # Create temp file with correct extension
                 suffix = Path(file.name).suffix
                 tmp_fd = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
                 tmp_path = Path(tmp_fd.name)
-                tmp_fd.close()  # Close handle, s3_client will write to path
+                tmp_fd.close()
 
                 # Download to temp path
                 await asyncio.to_thread(
@@ -81,8 +79,6 @@ async def process_upload_batch():
                     str(tmp_path)
                 )
 
-                # 2. Convert if needed (Excel/CSV)
-                logger.info(f"Converting {file.name} if needed")
                 openai_path, openai_filename = await converter.convert(
                     tmp_path,
                     file.name
@@ -90,7 +86,6 @@ async def process_upload_batch():
                 converted_path = openai_path if openai_path != tmp_path else None
 
                 # 3. Upload to OpenAI
-                logger.info(f"Uploading {openai_filename} to OpenAI vector store {file.vector_store_id}")
                 openai_file = await openai.create_file_from_path(
                     str(openai_path),
                     file.vector_store_id
@@ -105,8 +100,7 @@ async def process_upload_batch():
                         "status": FileState.INDEXING
                     }
                 )
-                logger.info(f"✓ Uploaded {file.name} → storage_key={openai_file.id}")
-                
+
             except APIError as e:
                 logger.error(f"OpenAI API error for {file.name}: {e}")
                 await file_repo.update(
@@ -140,8 +134,7 @@ async def process_upload_batch():
                         converted_path.unlink(missing_ok=True)
                     except Exception as e:
                         logger.warning(f"Failed to delete converted file {converted_path}: {e}")
-        
-        logger.info("Upload worker completed")
+
 
 if __name__ == "__main__":
     asyncio.run(process_upload_batch())
