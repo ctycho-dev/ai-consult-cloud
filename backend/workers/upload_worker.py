@@ -20,6 +20,7 @@ from app.core.decorators import log_timing
 
 logger = get_logger('app.upload_worker')
 
+
 @log_timing('upload_worker.process_upload_batch')
 async def process_upload_batch():
     """

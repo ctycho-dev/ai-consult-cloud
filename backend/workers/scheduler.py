@@ -7,24 +7,28 @@ from apscheduler.triggers.interval import IntervalTrigger
 from workers.indexing_worker import check_indexing_status
 from workers.upload_worker import process_upload_batch
 from workers.delete_worker import process_deletions
-from app.core.logger import get_logger
-
-logger = get_logger('app.scheduler')
+from app.core.logger import setup_logging, get_logger
 
 
 def main():
+    # Initialize logging first
+    setup_logging()
+    logger = get_logger('app.scheduler')
+    
+    logger.info("🚀 Scheduler starting...")
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     scheduler = AsyncIOScheduler(event_loop=loop)
 
     # Worker 1: Upload to OpenAI every 2 minutes
-    # scheduler.add_job(
-    #     process_upload_batch,
-    #     IntervalTrigger(minutes=3),
-    #     id='upload_worker',
-    #     max_instances=1
-    # )
+    scheduler.add_job(
+        process_upload_batch,
+        IntervalTrigger(minutes=3),
+        id='upload_worker',
+        max_instances=1
+    )
 
     # Worker 2: Check indexing status every 2 minutes
     # scheduler.add_job(
