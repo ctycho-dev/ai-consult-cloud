@@ -15,7 +15,7 @@ from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.infrastructure.yandex.yandex_s3_client import YandexS3Client
 from app.infrastructure.file_converter.file_converter import FileConverter
 from app.core.config import settings
-from app.core.decorators import log_timing
+from .decorator import log_timing
 
 
 logger = logging.getLogger('app.upload_worker')

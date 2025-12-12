@@ -11,7 +11,7 @@ from app.domain.file.repository import FileRepository
 from app.enums.enums import FileState
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.core.config import settings
-from app.core.decorators import log_timing
+from .decorator import log_timing
 
 
 logger = logging.getLogger('app.indexing_worker')

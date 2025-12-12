@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta
 import logging
 import sys
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -31,12 +32,15 @@ def main():
 
     scheduler = AsyncIOScheduler(event_loop=loop)
 
+    now = datetime.now()
+
     # Worker 1: Upload to OpenAI every 2 minutes
     scheduler.add_job(
         process_upload_batch,
         IntervalTrigger(minutes=3),
         id='upload_worker',
-        max_instances=1
+        max_instances=1,
+        next_run_time=now
     )
 
     # Worker 2: Check indexing status every 2 minutes
@@ -44,7 +48,8 @@ def main():
         check_indexing_status,
         IntervalTrigger(minutes=5),
         id='indexing_worker',
-        max_instances=1
+        max_instances=1,
+        next_run_time=now + timedelta(minutes=1)
     )
 
     # Worker 3: Process deletions every 5 minutes
@@ -52,7 +57,8 @@ def main():
         process_deletions,
         IntervalTrigger(minutes=3),
         id='delete_worker',
-        max_instances=1
+        max_instances=1,
+        next_run_time=now + timedelta(minutes=2)
     )
 
     scheduler.start()
