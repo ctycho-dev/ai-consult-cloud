@@ -38,7 +38,7 @@ class FileBucketService:
             object_id = msg["details"]["object_id"]
 
             # we only care about pdf/xls/xlsx etc
-            if not object_id.lower().endswith((".pdf", ".xls", ".xlsx")):
+            if not object_id.lower().endswith((".pdf", ".xls", ".xlsx", ".doc", ".docx")):
                 continue
 
             if "ObjectCreate" in event_type:

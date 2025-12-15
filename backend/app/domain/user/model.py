@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, Text, Integer, Enum as SQLEnum
+from sqlalchemy import String, Boolean, Text, Integer, Enum as SQLEnum, ARRAY
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from typing import List, Optional
@@ -37,6 +37,9 @@ class User(Base, FullAuditMixin):
     instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     # Tools & resources - stored as JSONB
-    tools: Mapped[List[dict]] = mapped_column(
-        JSONB, default=list, nullable=False
+    # tools: Mapped[List[dict]] = mapped_column(
+    #     JSONB, default=list, nullable=False
+    # )
+    vector_store_ids: Mapped[List[str]] = mapped_column(
+        ARRAY(String(64)), nullable=True
     )

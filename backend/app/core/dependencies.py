@@ -70,7 +70,8 @@ def get_storage_repo() -> StorageRepository:
 
 
 def get_openai_manager(
-    # file_repo: FileRepository = Depends(get_file_repo)
+    file_repo: FileRepository = Depends(get_file_repo),
+    storage_repo: StorageRepository = Depends(get_storage_repo)
 ) -> OpenAIManager:
     client = AsyncOpenAI(
         api_key=settings.OPENAI_API_KEY,
@@ -78,7 +79,12 @@ def get_openai_manager(
         # http_client=httpx.AsyncClient(proxy=settings.PROXY_URL)
     )
 
-    return OpenAIManager(client=client, file_repo=get_file_repo())
+    return OpenAIManager(
+        client=client,
+        file_repo=file_repo,
+        storage_repo=storage_repo
+    )
+    # return OpenAIManager(client=client, file_repo=get_file_repo())
 
 
 def get_yandex_s3_client() -> YandexS3Client:
@@ -215,6 +221,7 @@ def get_chat_service(
 def get_message_service(
     db: AsyncSession = Depends(get_db),
     repo: MessageRepository = Depends(get_message_repo),
+    storage_repo: StorageRepository = Depends(get_storage_repo),
     chat_repo: ChatRepository = Depends(get_chat_repo),
     user: UserOut = Depends(get_current_user),
     openai_manager: OpenAIManager = Depends(get_openai_manager),

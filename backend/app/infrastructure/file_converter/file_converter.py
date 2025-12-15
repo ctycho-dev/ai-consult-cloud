@@ -99,9 +99,11 @@ class FileConverter:
                 return self._llama(source_path, filename)
             except PermissionError as e:
                 # auth problem: no point retrying here; fall back
-                logger.warning("LlamaParse auth error, falling back to local Excel conversion: %s", e)
+                logger.error("LlamaParse auth error, falling back to local Excel conversion: %s", e)
+                raise e
             except Exception as e:
-                logger.warning("LlamaParse failed, falling back to local Excel conversion: %s", e)
+                logger.error("LlamaParse failed, falling back to local Excel conversion: %s", e)
+                raise e
 
         # 2) Local fallback using openpyxl + pandas
         return self._convert_excel_to_md_local(source_path, filename)

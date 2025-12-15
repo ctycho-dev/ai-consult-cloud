@@ -46,7 +46,7 @@ def main():
     # Worker 2: Check indexing status every 2 minutes
     scheduler.add_job(
         check_indexing_status,
-        IntervalTrigger(minutes=5),
+        IntervalTrigger(minutes=3),
         id='indexing_worker',
         max_instances=1,
         next_run_time=now + timedelta(minutes=1)

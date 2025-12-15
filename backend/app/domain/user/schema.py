@@ -70,7 +70,8 @@ class UserOut(BaseModel):
     model: Optional[str] = None
     instructions: Optional[str] = None
     user_instructions: Optional[str] = None
-    tools: List[ToolSpec] | None = None
+    # tools: List[ToolSpec] | None = None
+    vector_store_ids: List[str] | None = None
 
     external_id: str | None
     source: str | None

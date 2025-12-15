@@ -36,7 +36,7 @@ async def check_indexing_status():
         openai = OpenAIManager(openai_client, file_repo)
 
         # Get files being indexed
-        stmt = select(File).where(File.status == FileState.INDEXING).limit(20)
+        stmt = select(File).where(File.status == FileState.INDEXING).limit(10)
         result = await session.execute(stmt)
         files = result.scalars().all()
 

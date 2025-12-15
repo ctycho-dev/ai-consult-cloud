@@ -15,5 +15,5 @@ class Storage(Base, FullAuditMixin):
     name: Mapped[str] = mapped_column(String, nullable=False)
     vector_store_id: Mapped[str] = mapped_column(String, nullable=False)
     default: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False, unique=True
+        Boolean, default=False, nullable=False
     )

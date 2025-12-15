@@ -18,6 +18,7 @@ from openai import (
 from app.domain.user.schema import UserOut
 from app.domain.message.schema import ResultPayload, SourceInfo
 from app.domain.file.repository import FileRepository
+from app.domain.storage.repository import StorageRepository
 from app.core.logger import get_logger
 from app.core.decorators import log_timing
 
@@ -27,7 +28,10 @@ logger = get_logger()
 
 class OpenAIManager:
     def __init__(
-        self, client: AsyncOpenAI, file_repo: FileRepository
+        self,
+        client: AsyncOpenAI,
+        file_repo: FileRepository,
+        storage_repo: StorageRepository
     ):
         """
         Initialize OpenAIManager with OpenAI client and file repository.
@@ -37,6 +41,7 @@ class OpenAIManager:
         """
         self.client = client
         self.file_repo = file_repo
+        self.storage_repo = storage_repo
 
     @log_timing("OpenAI:create_conversation")
     async def create_conversation(self, user_id: int) -> str:
@@ -84,7 +89,8 @@ class OpenAIManager:
         user: UserOut,
         user_input: str
     ) -> ResultPayload:
-        tools_arg = self._get_user_tools(user)
+        vector_store_ids = await self.get_vector_store_ids(db, user)
+        tools_arg = self._get_user_tools(vector_store_ids)
         model = user.model or "gpt-4o-mini"
 
         instructions = None
@@ -266,36 +272,49 @@ class OpenAIManager:
         )
         return vs_file
 
-    # TODO: check if vector storage chosen
+    async def get_vector_store_ids(
+        self, db: AsyncSession, user: UserOut
+    ) -> list[str]:
+        """
+        Get vector store IDs for user. Uses user's vector_store_ids if set,
+        otherwise falls back to default storage.
+
+        :param db: Database session
+        :param user: UserOut instance
+        :return: List of vector store IDs
+        """
+        # Priority 1: User's configured vector stores
+        if user.vector_store_ids:
+            return user.vector_store_ids
+        
+        # Priority 2: Default storage from storages table
+        default_storage = await self.storage_repo.get_default_storage(db)
+        if default_storage:
+            return [default_storage.vector_store_id]
+        
+        logger.warning(
+            "No vector stores found for user %s and no default storage configured",
+            user.email
+        )
+        return []
+    
     def _get_user_tools(
-        self, user: UserOut
+        self, vector_store_ids: list[str] | None
     ) -> list[dict[str, Any]]:
         """
-        Extract user tools compatible with OpenAI API from user object.
+        Build file_search tool configuration with vector store IDs.
 
         :param user: UserOut instance
-        :return: List of tool dicts
+        :param vector_store_ids: List of vector store IDs to use
+        :return: List of tool dicts for OpenAI API
         """
-        tools: list[dict] = []
-        if not user.tools:
-            return tools
-        for tool in user.tools:
-            t_type = getattr(tool, "type", None)
-            if t_type != "file_search":
-                continue
-
-            fs_tool: dict[str, Any] = {
-                "type": "file_search",
-                "vector_store_ids": tool.vector_store_ids,
-            }
-
-            max_num = getattr(tool, "max_num_results", None)
-            if max_num is not None:
-                fs_tool["max_num_results"] = int(max_num)
-
-            tools.append(fs_tool)
+        if not vector_store_ids:
+            return []
         
-        return tools
+        return [{
+            "type": "file_search",
+            "vector_store_ids": vector_store_ids,
+        }]
     
     async def extract_sources_from_content(
         self,
