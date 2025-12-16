@@ -1,12 +1,8 @@
-import os
-import tempfile
+from pathlib import Path
 import aiofiles
-import io
 import time
-import csv
 from typing import Any
 import asyncio
-import io
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from openai import NOT_GIVEN
@@ -165,9 +161,14 @@ class OpenAIManager:
     async def create_file_from_path(self, path: str, vector_store_id: str):
         async with aiofiles.open(path, "rb") as f:
             file_content = await f.read()
+
+        original_filename = Path(path).name
+        stem = Path(original_filename).stem
+        ext = Path(original_filename).suffix.lower()
+        normalized_filename = f"{stem}{ext}"
         
         openai_file = await self.client.files.create(
-            file=(path, file_content),
+            file=(normalized_filename, file_content),
             purpose="assistants"
         )
         await self.client.vector_stores.files.create(

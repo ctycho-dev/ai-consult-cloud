@@ -4,11 +4,13 @@ import logging
 import sys
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
 # from workers.upload_worker import process_upload_batch
 from workers.indexing_worker import check_indexing_status
 from workers.upload_worker import process_upload_batch
 from workers.delete_worker import process_deletions
+from workers.weekly_sync_worker import weekly_sync
 
 
 def main():
@@ -59,6 +61,19 @@ def main():
         id='delete_worker',
         max_instances=1,
         next_run_time=now + timedelta(minutes=2)
+    )
+
+    # Worker 4: Weekly S3 reconciliation - Sundays at 2 AM Moscow time
+    scheduler.add_job(
+        weekly_sync,
+        CronTrigger(
+            day_of_week='sun',
+            hour=2,
+            minute=0,
+            timezone='Europe/Moscow'
+        ),
+        id='weekly_sync_worker',
+        max_instances=1
     )
 
     scheduler.start()
