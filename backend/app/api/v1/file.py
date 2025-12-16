@@ -240,7 +240,6 @@ async def yandex_storage_event(
     """
     try:
         payload = await request.json()
-        logger.info(f"Received Yandex storage event: {payload}")
         await service.process_yandex_messages(payload)
     except Exception as e:
         logger.error(f"Failed to parse Yandex event: {e}")
