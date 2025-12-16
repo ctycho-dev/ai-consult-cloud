@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     LLAMACLOUD_API_KEY: SecretStr | None = None
     LLAMAPARSE_ENABLE: bool = True
 
+    YANDEX_WEBHOOK_TOKEN: SecretStr
+
     @property
     def SYNC_DATABASE_URL(self) -> str:
         """Convert async URL to sync URL for Alembic"""

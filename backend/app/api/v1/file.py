@@ -1,6 +1,7 @@
 from fastapi import (
     APIRouter, Depends, HTTPException,
-    UploadFile, File, Response, Request, status
+    UploadFile, File, Response, Request, status,
+    Header
 )
 from app.middleware.rate_limiter import limiter
 from app.domain.file.schema import FileOut
@@ -198,6 +199,33 @@ def yandex_list_objects(
     service: FileService = Depends(get_file_service)
 ):
     return service.list_objects(bucket)
+
+
+async def verify_webhook_token(
+    x_webhook_token: str = Header(None, alias="X-Webhook-Token")
+):
+    """
+    Verify webhook token from Yandex Cloud trigger.
+    
+    :param x_webhook_token: Token from request header
+    :raises HTTPException: 401 if token is invalid or missing
+    """
+    if not x_webhook_token:
+        logger.warning("Webhook request missing X-Webhook-Token header")
+        raise HTTPException(
+            status_code=401,
+            detail="Missing webhook authentication token"
+        )
+    
+    expected_token = settings.YANDEX_WEBHOOK_TOKEN
+    if x_webhook_token != expected_token:
+        logger.warning(f"Invalid webhook token received: {x_webhook_token[:8]}...")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid webhook authentication token"
+        )
+    
+    return True
 
 
 @router.post("/yandex/storage-event")
