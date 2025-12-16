@@ -7,6 +7,7 @@ from openai import NotFoundError, APIError, AsyncOpenAI
 
 from app.domain.file.model import File
 from app.domain.file.repository import FileRepository
+from app.domain.storage.repository import StorageRepository
 from app.enums.enums import FileState
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.core.config import settings
@@ -28,12 +29,13 @@ async def process_deletions():
     async with AsyncSession(engine, expire_on_commit=False) as session:
 
         file_repo = FileRepository()
+        storage_repo = StorageRepository()
         openai_client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
             timeout=70
         )
 
-        openai = OpenAIManager(openai_client, file_repo)
+        openai = OpenAIManager(openai_client, file_repo, storage_repo)
         
         # Get files to delete
         stmt = select(File).where(File.status == FileState.DELETING).limit(5)
@@ -41,7 +43,6 @@ async def process_deletions():
         files = result.scalars().all()
         
         if not files:
-            logger.info("No files to delete")
             return
         
         logger.info(f"Processing {len(files)} files for deletion")
