@@ -39,7 +39,7 @@ def main():
     # Worker 1: Upload to OpenAI every 2 minutes
     scheduler.add_job(
         process_upload_batch,
-        IntervalTrigger(minutes=3),
+        IntervalTrigger(minutes=2),
         id='upload_worker',
         max_instances=1,
         next_run_time=now
@@ -57,7 +57,7 @@ def main():
     # Worker 3: Process deletions every 5 minutes
     scheduler.add_job(
         process_deletions,
-        IntervalTrigger(minutes=3),
+        IntervalTrigger(minutes=2),
         id='delete_worker',
         max_instances=1,
         next_run_time=now + timedelta(minutes=2)
