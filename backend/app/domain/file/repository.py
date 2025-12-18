@@ -221,3 +221,11 @@ class FileRepository(BaseRepository[File, FileOut, FileCreate]):
         
         stats["total"] = total
         return stats
+    
+    async def count_by_vector_store(self, db: AsyncSession, vector_store_id: str) -> int:
+        """Count files in a specific vector store"""
+        query = select(func.count(File.id)).where(
+            File.vector_store_id == vector_store_id
+        )
+        result = await db.execute(query)
+        return result.scalar() or 0

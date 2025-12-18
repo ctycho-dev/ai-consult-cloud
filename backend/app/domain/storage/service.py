@@ -108,8 +108,11 @@ class VectorStoreService:
         if not db_vs:
             raise ValueError("Vector store not found.")
         vector_store_id = db_vs.vector_store_id
-        # Delete related files
-        await self.file_repo.delete_by_vector_store(self.db, vector_store_id)
+
+        file_count = await self.file_repo.count_by_vector_store(self.db, vector_store_id)
+
+        if file_count > 0:
+            raise ValueError("Нельзя удалить векторное хранилище при наличии файлов.")
 
         # Delete in OpenAI
         self.client.vector_stores.delete(vector_store_id=vector_store_id)

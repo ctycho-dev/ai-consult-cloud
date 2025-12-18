@@ -67,9 +67,8 @@ def main():
     scheduler.add_job(
         weekly_sync,
         CronTrigger(
-            day_of_week='sun',
             hour=2,
-            minute=0,
+            minute=30,
             timezone='Europe/Moscow'
         ),
         id='weekly_sync_worker',

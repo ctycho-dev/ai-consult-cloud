@@ -115,16 +115,18 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
             const res = await deleteStorage(selectedStorageId);
             if (res && 'data' in res) {
                 toast.success('Хранилище удалено');
-                setIsDeleteModalOpen(false);
-                setSelectedStorageId(null);
                 refetch()
-            } else {
-                toast.error('Ошибка при удалении');
+            } else if ('error' in res) {
+                const errorData = res.error as any;
+                toast.error(errorData?.data?.detail || 'Ошибка при удалении');
             }
         } catch (err) {
             toast.error('Ошибка при удалении');
+        } finally {
+            setIsDeleteModalOpen(false);
+            setSelectedStorageId(null);
+            setIsDeleting(false);
         }
-        setIsDeleting(false);
     };
 
     const handleSelectStorage = async (vsId: string) => {
@@ -198,12 +200,12 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                                         </Menu.Target>
                                         <Menu.Dropdown>
                                             <Menu.Label>Действия</Menu.Label>
-                                            <Menu.Item
+                                            {/* <Menu.Item
                                                 leftSection={<SiHomeassistant size={14} />}
                                                 onClick={() => { handleSelectStorage(item.vector_store_id) }}
                                             >
                                                 Выбрать
-                                            </Menu.Item>
+                                            </Menu.Item> */}
                                             {!item.default && (
                                                 <Menu.Item
                                                     leftSection={<IconStar size={14} />}

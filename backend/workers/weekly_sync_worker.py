@@ -22,7 +22,7 @@ API_URL = f"{settings.BASE_URL}/api/v1/file/yandex/storage-event"
 WEBHOOK_TOKEN = settings.YANDEX_WEBHOOK_TOKEN.get_secret_value()
 S3_BUCKET = 'bitrix-sync'
 S3_PREFIX = ''
-LOOKBACK_DAYS = 10
+LOOKBACK_DAYS = 2
 BATCH_SIZE = 15
 RATE_LIMIT_DELAY = 1
 
