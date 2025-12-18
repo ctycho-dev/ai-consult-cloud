@@ -33,6 +33,7 @@ class FileBucketService:
         messages = payload.get("messages", [])
 
         for msg in messages:
+            logger.info(f'Message: {msg}')
             event_type = msg["event_metadata"]["event_type"]
             bucket_id = msg["details"]["bucket_id"]
             object_id = msg["details"]["object_id"]
@@ -77,6 +78,7 @@ class FileBucketService:
 
     async def _handle_delete(self, s3_key: str) -> None:
         existing = await self.repo.get_by_s3_object_key(self.db, s3_key)
+        logger.info(f'_handle_delete: {existing}')
         if not existing:
             return
         existing.status = FileState.DELETING
