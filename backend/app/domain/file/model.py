@@ -1,4 +1,5 @@
-from sqlalchemy import String, Integer, Boolean, Enum as SQLEnum
+from datetime import datetime
+from sqlalchemy import String, Integer, Boolean, Enum as SQLEnum, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 from typing import Optional
 from app.database.connection import Base
@@ -43,6 +44,11 @@ class File(Base, FullAuditMixin):
         SQLEnum(FileState), default=FileState.PENDING, nullable=False
     )
     last_error: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    indexing_checked_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
 
     # ---- Delete ----
     # delete_status: Mapped[DeleteStatus] = mapped_column(
