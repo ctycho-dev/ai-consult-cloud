@@ -67,6 +67,8 @@ class FileOut(BaseModel):
     deleted_s3: bool = False
     last_delete_error: str | None = None
 
+    indexing_checked_at: datetime | None
+
     created_at: datetime
 
     @field_serializer('created_at')

@@ -1,4 +1,4 @@
-# workers/indexing_worker.py
+from datetime import datetime, timezone
 import asyncio
 import logging
 from sqlalchemy import select
@@ -38,13 +38,22 @@ async def check_indexing_status():
         openai = OpenAIManager(openai_client, file_repo, storage_repo)
 
         # Get files being indexed
-        stmt = select(File).where(File.status == FileState.INDEXING).limit(10)
+        # stmt = select(File).where(File.status == FileState.INDEXING).limit(10)
+        stmt = (
+            select(File)
+            .where(File.status == FileState.INDEXING)
+            .order_by(
+                File.indexing_checked_at.is_not(None),
+                File.indexing_checked_at.asc(),
+            )
+            .limit(10)
+        )
         result = await session.execute(stmt)
         files = result.scalars().all()
 
         if not files:
             return
-
+        
         for file in files:
             try:
                 if not file.storage_key or not file.vector_store_id:
@@ -53,7 +62,8 @@ async def check_indexing_status():
                         file.id,
                         {
                             "status": FileState.UPLOAD_FAILED,
-                            "last_error": "Missing storage_key or vector_store_id"
+                            "last_error": "Missing storage_key or vector_store_id",
+                            "indexing_checked_at": datetime.now(timezone.utc),
                         }
                     )
                     continue
@@ -64,33 +74,29 @@ async def check_indexing_status():
                     file.storage_key
                 )
 
+                update_data = {
+                    "indexing_checked_at": datetime.now(timezone.utc),
+                }
+
                 # OpenAI file status: "in_progress", "completed", "cancelled", "failed"
                 if vs_file.status == "completed":
-                    await file_repo.update(
-                        session,
-                        file.id,
-                        {"status": FileState.INDEXED}
-                    )
-                
+                    update_data["status"] = FileState.INDEXED
                 elif vs_file.status in ["cancelled", "failed"]:
                     error_msg = f"OpenAI indexing {vs_file.status}"
                     if hasattr(vs_file, 'last_error') and vs_file.last_error:
                         error_msg += f": {vs_file.last_error}"
                     
-                    await file_repo.update(
-                        session,
-                        file.id,
-                        {
-                            "status": FileState.UPLOAD_FAILED,
-                            "last_error": error_msg
-                        }
-                    )
+                    update_data["status"] = FileState.UPLOAD_FAILED
+                    update_data["last_error"] = error_msg
+                    
                     logger.error(f"✗ File {file.name} indexing failed: {error_msg}")
                 
                 else:
                     # Still "in_progress" - check again next run
                     logger.info(f"File {file.name} still indexing (status={vs_file.status})")
-                
+
+                await file_repo.update(session, file.id, update_data)
+
             except NotFoundError:
                 logger.error(f"File {file.name} not found in OpenAI vector store")
                 await file_repo.update(
@@ -118,4 +124,8 @@ async def check_indexing_status():
                 )
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     asyncio.run(check_indexing_status())
