@@ -15,9 +15,9 @@ x-healthcheck-redis-template: &redishealthcheck
     retries: 3
 
 services:
-  postgres:
+  postgres-dev:
     image: postgres:17
-    container_name: assistant-db
+    container_name: postgres-dev
     ports:
       - "5432:5432"
     volumes:
@@ -29,6 +29,19 @@ services:
     networks:
       - assistant-cloud-network
     restart: always
+    <<: *postgreshealthcheck
+
+  postgres-test:
+    image: postgres:17
+    container_name: postgres-test
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      POSTGRES_DB: test_analyser_db
+    networks:
+      - assistant-cloud-network
     <<: *postgreshealthcheck
 
   redis:

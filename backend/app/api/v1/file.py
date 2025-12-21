@@ -9,7 +9,7 @@ from app.domain.file.service import FileService
 from app.domain.file.service_public import PublicFileService
 from app.domain.file.bucket_service import FileBucketService
 from app.utils.oauth2 import validate_file_access_token
-from app.core.dependencies import (
+from app.api.dependencies.services import (
     get_file_service,
     get_file_public_service,
     get_file_bucket_service

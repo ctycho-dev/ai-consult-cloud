@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from passlib.context import CryptContext
 from jose import JWTError, jwt
 from app.domain.user.schema import TokenData
 from app.core.config import settings

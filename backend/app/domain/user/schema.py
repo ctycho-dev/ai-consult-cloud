@@ -1,31 +1,11 @@
-from typing import Optional, List, Literal, Union
+from typing import Optional, List, Literal
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, ConfigDict, field_serializer
-from pydantic.alias_generators import to_camel
 from app.enums.enums import UserRole
+from app.common.schema import CamelModel
 
 
-# ---- Tool specs (match Responses API "tools" shape) -------------------------
-ToolTypes = Literal["file_search", "code_interpreter"]
-
-
-class CamelModel(BaseModel):
-    """Base model that converts snake_case to camelCase for JSON output"""
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        validate_by_name=True,     # ✅ NEW: Accept snake_case field names
-        validate_by_alias=True,    # ✅ NEW: Accept camelCase aliases  
-        from_attributes=True,
-    )
-
-
-class ToolSpec(BaseModel):
-    type: ToolTypes = "file_search"
-    vector_store_ids: List[str] = []
-    max_num_results: int | None = None
-
-
-class UserCreate(BaseModel):
+class UserCreateSchema(BaseModel):
     """
     Schema for creating a new user.
     """
@@ -35,14 +15,12 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.USER
     external_id: str | None = None
     source: str | None = 'web'
-    # agent: Agent | None = None
     instructions: str | None = None
     user_instructions: str | None = None
     model: str = "gpt-4o-mini"
-    tools: List[ToolSpec] | None = None
 
 
-class UserOutShort(CamelModel):
+class UserCredsSchema(CamelModel):
 
     id: int
     email: EmailStr | str
@@ -54,35 +32,32 @@ class UserSelectStorage(BaseModel):
     vs_id: str
 
 
-class UserOut(BaseModel):
+class UserOutSchema(BaseModel):
     """
     Full user output schema.
     """
     id: int
     name: str | None
     email: EmailStr | str
-    # agent: AgentOut | None
     role: UserRole
     valid: bool
-    created_at: datetime
 
     # OpenAI config
     model: Optional[str] = None
     instructions: Optional[str] = None
     user_instructions: Optional[str] = None
-    # tools: List[ToolSpec] | None = None
     vector_store_ids: List[str] | None = None
 
     external_id: str | None
     source: str | None
+    created_at: datetime
 
-    @staticmethod
-    def _iso(dt: datetime) -> str:
+    @field_serializer("created_at")
+    def serialize_created_at(self, dt: datetime) -> str:
         return dt.isoformat()
 
     model_config = ConfigDict(
         from_attributes=True,
-        json_encoders={datetime: _iso}
     )
 
 

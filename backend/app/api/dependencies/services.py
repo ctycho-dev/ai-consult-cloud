@@ -1,4 +1,3 @@
-import httpx
 from fastapi import (
     HTTPException,
     status,
@@ -6,9 +5,7 @@ from fastapi import (
     Depends
 )
 from sqlalchemy.ext.asyncio import AsyncSession
-from openai import OpenAI, AsyncOpenAI
-from jose import JWTError
-from app.domain.user.schema import UserCreate
+from app.domain.user.schema import UserCreateSchema
 from app.enums.enums import UserRole
 from app.domain.storage.service import VectorStoreService
 from app.domain.storage.repository import StorageRepository
@@ -18,132 +15,45 @@ from app.domain.file.service_public import PublicFileService
 from app.domain.file.bucket_service import FileBucketService
 from app.domain.user.service import UserService
 from app.domain.user.repository import UserRepository
-from app.domain.user.schema import UserOut
+from app.domain.user.schema import UserOutSchema
 from app.domain.chat.service import ChatService
 from app.domain.chat.repository import ChatRepository
 from app.domain.message.repository import MessageRepository
 from app.domain.message.service import MessageService
-from app.utils.oauth2 import verify_access_token
 from app.infrastructure.bitrix.bitrix_service import BitrixService
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.infrastructure.yandex.yandex_s3_client import YandexS3Client
 from app.infrastructure.file_converter.file_converter import FileConverter
-from app.core.config import settings
-from app.database.connection import db_manager
-from app.middleware.logging import set_user_email, get_user_email
-
-
-# -------------------------
-# Database Connection
-# -------------------------
-async def get_db():
-    """
-    FastAPI dependency to get a database session.
-    """
-    async with db_manager.session_scope() as session:
-        yield session
-
-
-def get_file_converter() -> FileConverter:
-    return FileConverter()
-
-# -------------------------
-# Repository Factories
-# -------------------------
-
-
-def get_file_repo() -> FileRepository:
-    return FileRepository()
-
-
-def get_chat_repo() -> ChatRepository:
-    return ChatRepository()
-
-
-def get_message_repo() -> MessageRepository:
-    return MessageRepository()
-
-
-def get_storage_repo() -> StorageRepository:
-
-    return StorageRepository()
-
-
-def get_openai_manager(
-    file_repo: FileRepository = Depends(get_file_repo),
-    storage_repo: StorageRepository = Depends(get_storage_repo)
-) -> OpenAIManager:
-    client = AsyncOpenAI(
-        api_key=settings.OPENAI_API_KEY,
-        timeout=70
-        # http_client=httpx.AsyncClient(proxy=settings.PROXY_URL)
-    )
-
-    return OpenAIManager(
-        client=client,
-        file_repo=file_repo,
-        storage_repo=storage_repo
-    )
-    # return OpenAIManager(client=client, file_repo=get_file_repo())
-
-
-def get_yandex_s3_client() -> YandexS3Client:
-
-    return YandexS3Client()
-
-
-def get_user_repo() -> UserRepository:
-
-    return UserRepository()
-
-
-async def get_current_user(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    user_repo: UserRepository = Depends(get_user_repo)
-) -> UserOut:
-    """Get current user from an HTTP-only cookie."""
-
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    token = request.cookies.get("access_token")
-    if not token:
-        raise credentials_exception
-    try:
-        token_data = verify_access_token(token, credentials_exception)
-        user_id = token_data.id
-
-        # Fetch the user from the repository
-        user = await user_repo.get_by_id(db, int(user_id))
-        if not user:
-            raise credentials_exception
-
-        request.state.user = user.id
-        set_user_email(user.email, request)
-
-        return user
-    except JWTError as exc:
-        raise credentials_exception from exc
+from app.middleware.logging import set_user_email
+from app.api.dependencies.db import get_db
+from app.api.dependencies.auth import get_current_user
+from app.api.dependencies.repos import (
+    get_file_repo,
+    get_storage_repo,
+    get_user_repo,
+    get_chat_repo,
+    get_message_repo
+)
+from app.api.dependencies.integrations import (
+    get_openai_manager,
+    get_yandex_s3_client,
+    get_file_converter
+)
 
 
 def get_user_service(
-    db: AsyncSession = Depends(get_db),
     repo: UserRepository = Depends(get_user_repo),
     vs_repo: StorageRepository = Depends(get_storage_repo),
 ) -> UserService:
 
-    return UserService(db=db, repo=repo, vs_repo=vs_repo)
+    return UserService(repo=repo, vs_repo=vs_repo)
 
 
 def get_file_service(
     db: AsyncSession = Depends(get_db),
     repo: FileRepository = Depends(get_file_repo),
     storage_repo: StorageRepository = Depends(get_storage_repo),
-    user: UserOut = Depends(get_current_user),
+    user: UserOutSchema = Depends(get_current_user),
     openai_manager: OpenAIManager = Depends(get_openai_manager),
     yandex_s3_client: YandexS3Client = Depends(get_yandex_s3_client),
     converter: FileConverter = Depends(get_file_converter)
@@ -194,7 +104,7 @@ def get_storage_service(
     db: AsyncSession = Depends(get_db),
     repo: StorageRepository = Depends(get_storage_repo),
     file_repo: FileRepository = Depends(get_file_repo),
-    user: UserOut = Depends(get_current_user),
+    user: UserOutSchema = Depends(get_current_user),
 ) -> VectorStoreService:
 
     if user.role != UserRole.ADMIN:
@@ -206,7 +116,7 @@ def get_storage_service(
 def get_chat_service(
     db: AsyncSession = Depends(get_db),
     repo: ChatRepository = Depends(get_chat_repo),
-    user: UserOut = Depends(get_current_user),
+    user: UserOutSchema = Depends(get_current_user),
     openai_manager: OpenAIManager = Depends(get_openai_manager),
 ) -> ChatService:
 
@@ -223,7 +133,7 @@ def get_message_service(
     repo: MessageRepository = Depends(get_message_repo),
     storage_repo: StorageRepository = Depends(get_storage_repo),
     chat_repo: ChatRepository = Depends(get_chat_repo),
-    user: UserOut = Depends(get_current_user),
+    user: UserOutSchema = Depends(get_current_user),
     openai_manager: OpenAIManager = Depends(get_openai_manager),
 ) -> MessageService:
 
@@ -240,7 +150,7 @@ async def get_bitrix_user_from_request(
     request: Request,
     db: AsyncSession = Depends(get_db),
     user_service: UserService = Depends(get_user_service)
-) -> UserOut:
+) -> UserOutSchema:
     """Extract Bitrix user info from form data and get/create user."""
 
     # Parse form data to extract user info  
@@ -261,16 +171,15 @@ async def get_bitrix_user_from_request(
     user = await user_service.repo.get_by_external_id(db, bitrix_user_id)
 
     if not user:
-        user_data = UserCreate(
+        user_data = UserCreateSchema(
             name=bitrix_user_name,
             email=f"bitrix_{bitrix_user_id}@domain.ru",
             password=f"bitrix_{bitrix_user_id}",
             source="bitrix",
             external_id=bitrix_user_id,
             instructions="You are a helpful AI assistant.",
-            tools=[]
         )
-        user = await user_service.create_user(user_data)
+        user = await user_service.create_user(db, user_data)
 
         if not user:
             raise HTTPException(
@@ -287,7 +196,7 @@ async def get_bitrix_user_from_request(
 def get_bitrix_service(
     message_repo: MessageRepository = Depends(get_message_repo),
     chat_repo: ChatRepository = Depends(get_chat_repo),
-    user: UserOut = Depends(get_bitrix_user_from_request),
+    user: UserOutSchema = Depends(get_bitrix_user_from_request),
     openai_manager: OpenAIManager = Depends(get_openai_manager),
 ) -> BitrixService:
     """Get BitrixService with proper dependency injection - same pattern as other services."""

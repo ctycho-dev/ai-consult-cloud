@@ -10,7 +10,7 @@ from app.domain.chat.schema import (
     ChatOut
 )
 from app.infrastructure.llm.openai_manager import OpenAIManager
-from app.domain.user.schema import UserOut
+from app.domain.user.schema import UserOutSchema
 from app.core.logger import get_logger
 
 
@@ -22,7 +22,7 @@ class ChatService:
         self,
         db: AsyncSession,
         repo: ChatRepository,
-        user: UserOut,
+        user: UserOutSchema,
         manager: OpenAIManager,
 
     ):

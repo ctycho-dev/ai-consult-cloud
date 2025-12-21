@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.file.repository import FileRepository
 from app.domain.storage.repository import StorageRepository
 from app.domain.file.schema import FileCreate, FileOut
-from app.domain.user.schema import UserOut
+from app.domain.user.schema import UserOutSchema
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.infrastructure.yandex.yandex_s3_client import YandexS3Client
 from app.infrastructure.file_converter.file_converter import FileConverter
@@ -35,7 +35,7 @@ class FileService:
         db: AsyncSession,
         repo: FileRepository,
         storage_repo: StorageRepository,
-        user: UserOut,
+        user: UserOutSchema,
         manager: OpenAIManager,
         s3_client: YandexS3Client,
         converter: FileConverter,

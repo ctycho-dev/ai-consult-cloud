@@ -11,7 +11,7 @@ from openai import (
     BadRequestError, NotFoundError, ConflictError,
     InternalServerError, RateLimitError, APIError
 )
-from app.domain.user.schema import UserOut
+from app.domain.user.schema import UserOutSchema
 from app.domain.message.schema import ResultPayload, SourceInfo
 from app.domain.file.repository import FileRepository
 from app.domain.storage.repository import StorageRepository
@@ -82,7 +82,7 @@ class OpenAIManager:
         self,
         db: AsyncSession,
         conv_id: str,
-        user: UserOut,
+        user: UserOutSchema,
         user_input: str
     ) -> ResultPayload:
         vector_store_ids = await self.get_vector_store_ids(db, user)
@@ -131,14 +131,14 @@ class OpenAIManager:
         self,
         db: AsyncSession,
         conv_id: str,
-        user: UserOut,
+        user: UserOutSchema,
         user_input: str
     ) -> ResultPayload:
         """
         Send user input and receive AI response with retry on transient errors.
 
         :param conv_id: Conversation ID
-        :param user: UserOut instance containing model and tool info
+        :param user: UserOutSchema instance containing model and tool info
         :param user_input: User message input string
         :return: ResultPayload containing answer and sources
         """
@@ -274,14 +274,14 @@ class OpenAIManager:
         return vs_file
 
     async def get_vector_store_ids(
-        self, db: AsyncSession, user: UserOut
+        self, db: AsyncSession, user: UserOutSchema
     ) -> list[str]:
         """
         Get vector store IDs for user. Uses user's vector_store_ids if set,
         otherwise falls back to default storage.
 
         :param db: Database session
-        :param user: UserOut instance
+        :param user: UserOutSchema instance
         :return: List of vector store IDs
         """
         # Priority 1: User's configured vector stores
@@ -305,7 +305,7 @@ class OpenAIManager:
         """
         Build file_search tool configuration with vector store IDs.
 
-        :param user: UserOut instance
+        :param user: UserOutSchema instance
         :param vector_store_ids: List of vector store IDs to use
         :return: List of tool dicts for OpenAI API
         """

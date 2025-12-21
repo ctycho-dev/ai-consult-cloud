@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.logger import get_logger
 from app.domain.storage.repository import StorageRepository
 from app.domain.file.repository import FileRepository
-from app.domain.user.schema import UserOut
+from app.domain.user.schema import UserOutSchema
 from app.domain.storage.schema import StorageCreate, StorageOut
 
 
@@ -23,7 +23,7 @@ class VectorStoreService:
         db: AsyncSession,
         repo: StorageRepository,
         file_repo: FileRepository,
-        user: UserOut
+        user: UserOutSchema
     ):
         self.db = db
         self.repo = repo

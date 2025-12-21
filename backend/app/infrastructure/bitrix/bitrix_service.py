@@ -10,7 +10,7 @@ from app.core.logger import get_logger
 from app.core.config import settings
 from app.domain.message.repository import MessageRepository
 from app.domain.chat.repository import ChatRepository
-from app.domain.user.schema import UserOut
+from app.domain.user.schema import UserOutSchema
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.domain.message.schema import MessageCreate
 from app.domain.chat.schema import ChatCreate, ChatOut
@@ -36,7 +36,7 @@ class BitrixService:
         # db: AsyncSession,
         message_repo: MessageRepository,
         chat_repo: ChatRepository,
-        user: UserOut,
+        user: UserOutSchema,
         openai_manager: OpenAIManager
     ):
         # Dependencies

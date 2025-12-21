@@ -8,14 +8,14 @@ from sqlalchemy import exists
 from app.common.base_repository import BaseRepository
 from app.domain.user.model import User
 from app.domain.user.schema import (
-    UserCreate,
-    UserOut,
-    UserOutShort,
+    UserCreateSchema,
+    UserOutSchema,
+    UserCredsSchema,
 )
 from app.exceptions.exceptions import DatabaseError
 
 
-class UserRepository(BaseRepository[User, UserOut, UserCreate]):
+class UserRepository(BaseRepository[User, UserOutSchema, UserCreateSchema]):
     """
     PostgreSQL repository for User using SQLAlchemy (async).
 
@@ -24,7 +24,7 @@ class UserRepository(BaseRepository[User, UserOut, UserCreate]):
     """
 
     def __init__(self) -> None:
-        super().__init__(User, UserOut, UserCreate)
+        super().__init__(User, UserOutSchema, UserCreateSchema)
 
     # ---------- Custom queries ---------- #
 
@@ -32,7 +32,7 @@ class UserRepository(BaseRepository[User, UserOut, UserCreate]):
         self,
         db: AsyncSession,
         email: str,
-    ) -> Optional[UserOutShort]:
+    ) -> Optional[UserCredsSchema]:
         """
         Return a lightweight User projection for the given e-mail.
         """
@@ -43,7 +43,7 @@ class UserRepository(BaseRepository[User, UserOut, UserCreate]):
             user: Optional[User] = result.scalar_one_or_none()
             if not user:
                 return None
-            return UserOutShort.model_validate(user)
+            return UserCredsSchema.model_validate(user)
         except Exception as e:  # pragma: no cover
             raise DatabaseError(
                 f"Failed to fetch user by e-mail {email}: {e}"
@@ -53,7 +53,7 @@ class UserRepository(BaseRepository[User, UserOut, UserCreate]):
         self,
         db: AsyncSession,
         external_id: str,
-    ) -> Optional[UserOut]:
+    ) -> Optional[UserOutSchema]:
         """
         Return a full User DTO for a given external_id.
         """
@@ -64,7 +64,7 @@ class UserRepository(BaseRepository[User, UserOut, UserCreate]):
             user: Optional[User] = result.scalar_one_or_none()
             if not user:
                 return None
-            return UserOut.model_validate(user)
+            return UserOutSchema.model_validate(user)
         except Exception as e:  # pragma: no cover
             raise DatabaseError(
                 f"Failed to fetch user by external_id {external_id}: {e}"

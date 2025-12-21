@@ -3,7 +3,7 @@ from fastapi import (
 )
 from app.domain.chat.service import ChatService
 from app.domain.chat.schema import ChatCreate
-from app.core.dependencies import get_chat_service
+from app.api.dependencies.services import get_chat_service
 from app.core.logger import get_logger
 from app.core.config import settings
 

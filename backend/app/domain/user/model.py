@@ -36,10 +36,6 @@ class User(Base, FullAuditMixin):
     user_instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
-    # Tools & resources - stored as JSONB
-    # tools: Mapped[List[dict]] = mapped_column(
-    #     JSONB, default=list, nullable=False
-    # )
     vector_store_ids: Mapped[List[str]] = mapped_column(
         ARRAY(String(64)), nullable=True
     )

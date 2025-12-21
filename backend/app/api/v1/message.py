@@ -14,7 +14,7 @@ from app.infrastructure.bitrix.bitrix_service import BitrixService
 from app.domain.message.service import MessageService
 from app.infrastructure.redis.client import get_redis_client
 from app.infrastructure.redis.pubsub import RedisPubSub
-from app.core.dependencies import (
+from app.api.dependencies import (
     get_message_service,
     get_bitrix_service,
 )

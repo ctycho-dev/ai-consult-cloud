@@ -12,7 +12,7 @@ from app.domain.message.repository import MessageRepository
 from app.domain.chat.repository import ChatRepository
 from app.domain.message.schema import MessageCreate, MessageOut
 from app.infrastructure.llm.openai_manager import OpenAIManager
-from app.domain.user.schema import UserOut
+from app.domain.user.schema import UserOutSchema
 from app.enums.enums import (
     UserRole,
     MessageState
@@ -38,7 +38,7 @@ class MessageService:
         db: AsyncSession,
         repo: MessageRepository,
         chat_repo: ChatRepository,
-        user: UserOut,
+        user: UserOutSchema,
         manager: OpenAIManager
     ):
         self.db = db
