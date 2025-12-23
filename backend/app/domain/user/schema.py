@@ -35,11 +35,9 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.USER
     external_id: str | None = None
     source: str | None = 'web'
-    # agent: Agent | None = None
     instructions: str | None = None
     user_instructions: str | None = None
     model: str = "gpt-4o-mini"
-    tools: List[ToolSpec] | None = None
 
 
 class UserOutShort(CamelModel):
@@ -61,7 +59,6 @@ class UserOut(BaseModel):
     id: int
     name: str | None
     email: EmailStr | str
-    # agent: AgentOut | None
     role: UserRole
     valid: bool
     created_at: datetime
@@ -70,7 +67,6 @@ class UserOut(BaseModel):
     model: Optional[str] = None
     instructions: Optional[str] = None
     user_instructions: Optional[str] = None
-    # tools: List[ToolSpec] | None = None
     vector_store_ids: List[str] | None = None
 
     external_id: str | None
