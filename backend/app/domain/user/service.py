@@ -89,10 +89,10 @@ class UserService:
             )
         
         # Always set tools explicitly using the current API shape
-        user.tools = [ToolSpec(
-            type="file_search",
-            vector_store_ids=[vs.vector_store_id],
-        )]
+        # user.tools = [ToolSpec(
+        #     type="file_search",
+        #     vector_store_ids=[vs.vector_store_id],
+        # )]
         
         user.password = hash_password(user.password)
         new_user = await self.repo.create(self.db, user)
