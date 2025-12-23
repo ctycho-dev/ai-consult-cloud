@@ -119,6 +119,7 @@ class BaseRepository(Generic[T, S, C]):
             if current_user_id and hasattr(instance, "updated_by"):
                 setattr(instance, "updated_by", current_user_id)
 
+            # await db.flush()
             await db.commit()
             await db.refresh(instance)
 
