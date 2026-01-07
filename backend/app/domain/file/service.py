@@ -20,6 +20,7 @@ from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.infrastructure.yandex.yandex_s3_client import YandexS3Client
 from app.infrastructure.file_converter.file_converter import FileConverter
 from app.enums.enums import FileOrigin, FileState, DeleteStatus, UserRole
+from app.exceptions.exceptions import NotFoundError
 from app.core.config import settings
 
 from app.core.logger import get_logger
@@ -32,7 +33,6 @@ CHUNK_SIZE = 1024 * 1024  # 1 MB
 class FileService:
     def __init__(
         self,
-        db: AsyncSession,
         repo: FileRepository,
         storage_repo: StorageRepository,
         user: UserOutSchema,
@@ -40,7 +40,6 @@ class FileService:
         s3_client: YandexS3Client,
         converter: FileConverter,
     ):
-        self.db = db
         self.repo = repo
         self.storage_repo = storage_repo
         self.user = user
@@ -48,43 +47,35 @@ class FileService:
         self.s3_client = s3_client
         self.converter = converter
 
-    async def get_all(self) -> list[FileOut]:
-        return await self.repo.get_all(self.db)
+    async def get_all(self, db: AsyncSession) -> list[FileOut]:
+        return await self.repo.get_all(db)
 
-    def get_all_openai(self):
-        return self.manager.list_uploaded_files()
+    async def get_by_id(self, db: AsyncSession, file_id: int) -> FileOut | None:
+        return await self.repo.get_by_id(db, file_id)
 
-    async def get_by_id(self, file_id: int) -> FileOut | None:
-        return await self.repo.get_by_id(self.db, file_id)
-
-    async def delete_by_id(self, file_id: int) -> FileOut | None:
+    async def delete_by_id(self, db: AsyncSession, file_id: int) -> FileOut | None:
         if self.user.role == UserRole.USER:
             raise HTTPException(
                 status_code=403,
                 detail='Insufficient permissions: File deletion requires elevated privileges.'
             )
 
-        file = await self.repo.get_by_id(self.db, file_id)
+        file = await self.repo.get_by_id(db, file_id)
         if not file:
-            raise ValueError(f"File not found: {file_id}")
+            raise NotFoundError(f"File not found: {file_id}")
 
-        # Mark as in progress if not already started
-        if file.delete_status == DeleteStatus.PENDING:
-            await self.repo.update(
-                self.db,
-                file_id,
-                {"delete_status": DeleteStatus.IN_PROGRESS}
-            )
+        if file.status == FileState.DELETING:
+            return None
 
         # 1. Delete from OpenAI
-        if not file.deleted_openai and file.vector_store_id and file.storage_key:
+        if (not file.deleted_openai) and file.vector_store_id and file.storage_key:
             try:
                 await self.manager.delete_file(file.vector_store_id, file.storage_key)
-                await self.repo.update(self.db, file_id, {"deleted_openai": True})
+                await self.repo.update(db, file_id, {"deleted_openai": True})
             except Exception as e:
                 logger.error("Delete OpenAI failed for %s: %s", file_id, e)
                 await self.repo.update(
-                    self.db, file_id,
+                    db, file_id,
                     {
                         "delete_status": DeleteStatus.FAILED,
                         "last_delete_error": f"OpenAI: {str(e)}"
@@ -93,13 +84,17 @@ class FileService:
                 raise HTTPException(status_code=500, detail=str(e)) from e
 
         # 2. Delete from S3
-        if not file.deleted_s3 and file.s3_bucket and file.s3_object_key:
+        if (not file.deleted_s3) and file.s3_bucket and file.s3_object_key:
             try:
-                self.s3_client.delete_file(file.s3_bucket, file.s3_object_key)
-                await self.repo.update(self.db, file_id, {"deleted_s3": True})
+                await asyncio.to_thread(
+                    self.s3_client.delete_file,
+                    file.s3_bucket,
+                    file.s3_object_key
+                )
+                await self.repo.update(db, file_id, {"deleted_s3": True})
             except Exception as e:
                 logger.error("Delete S3 failed for %s: %s", file_id, e)
-                await self.repo.update(self.db, file_id, {
+                await self.repo.update(db, file_id, {
                     "delete_status": DeleteStatus.FAILED,
                     "last_delete_error": f"S3: {str(e)}"
                 })
@@ -107,10 +102,10 @@ class FileService:
 
         # 3. Finalize in DB
         try:
-            await self.repo.delete_by_id(self.db, file_id)
+            await self.repo.delete_by_id(db, file_id)
         except Exception as e:
             logger.error("Final DB update failed for %s: %s", file_id, e)
-            await self.repo.update(self.db, file_id, {
+            await self.repo.update(db, file_id, {
                 "delete_status": DeleteStatus.FAILED,
                 "last_delete_error": f"DB: {str(e)}"
             })
@@ -118,11 +113,11 @@ class FileService:
         
         return None
 
-    async def get_by_storage_id(self, storage_id: str) -> list[FileOut]:
+    async def get_by_storage_id(self, db: AsyncSession, storage_id: str) -> list[FileOut]:
 
-        return await self.repo.get_by_storage_id(self.db, storage_id)
+        return await self.repo.get_by_storage_id(db, storage_id)
 
-    async def create_file(self, uploaded_file: UploadFile) -> FileOut | None:
+    async def create_file(self, db: AsyncSession, uploaded_file: UploadFile) -> FileOut | None:
         """
         Upload a file to OpenAI vector store and record it in MongoDB.
         """
@@ -134,9 +129,9 @@ class FileService:
 
         self._validate_file_size(uploaded_file)
         
-        vector_store_id = await self._resolve_vector_store_id()
+        vector_store_id = await self._resolve_vector_store_id(db)
 
-        storage = await self.storage_repo.get_by_vector_store_id(self.db, vector_store_id)
+        storage = await self.storage_repo.get_by_vector_store_id(db, vector_store_id)
         if not storage:
             raise HTTPException(
                 status_code=400,
@@ -160,10 +155,10 @@ class FileService:
             )
 
             # 2. Deduplication check
-            await self._check_for_duplication(sha256_hex, original_name)
+            await self._check_for_duplication(db, sha256_hex, original_name)
 
             # 3. Save metadata
-            new_doc = await self.repo.create(self.db, FileCreate(
+            new_doc = await self.repo.create(db, FileCreate(
                 s3_bucket=bucket,
                 name=original_name,
                 size=size_bytes,
@@ -174,6 +169,7 @@ class FileService:
 
             # 4. Upload to S3
             await self._upload_to_s3(
+                db=db,
                 tmp_orig=str(tmp_orig),
                 bucket=bucket,
                 original_name=original_name,
@@ -183,6 +179,7 @@ class FileService:
 
             # 6. Upload to OpenAI
             final_doc, tmp_conv = await self._upload_to_openai(
+                db=db,
                 tmp_orig=tmp_orig,
                 original_name=original_name,
                 vector_store_id=vector_store_id,
@@ -192,8 +189,8 @@ class FileService:
             return final_doc
         except Exception as e:
             if new_doc:
-                await self.repo.update(self.db, new_doc.id, {
-                    "status": FileState.FAILED,
+                await self.repo.update(db, new_doc.id, {
+                    "status": FileState.UPLOAD_FAILED,
                     "last_error": str(e)
                 })
             logger.exception("File pipeline failed for %s", original_name)
@@ -213,9 +210,9 @@ class FileService:
                 except Exception as e:
                     logger.warning("Failed to delete converted temp %s: %s", tmp_conv, e)
 
-    async def download_file(self, file_id: int):
+    async def download_file(self, db: AsyncSession, file_id: int):
 
-        file = await self.repo.get_by_id(self.db, file_id)
+        file = await self.repo.get_by_id(db, file_id)
         if not file:
             raise HTTPException(status_code=404, detail='File with provided id is not found.')
         
@@ -224,7 +221,7 @@ class FileService:
         
         # self.s3_client.download_file(file.s3_bucket, file.s3_object_key)
         def generate():
-            response = self.s3_client._s3.get_object(
+            response = self.s3_client.s3.get_object(
                 Bucket=file.s3_bucket, 
                 Key=file.s3_object_key
             )
@@ -271,11 +268,9 @@ class FileService:
         """Get vector store files."""
         return await self.manager.retrieve_file(vector_store_id, storage_key)
 
-    async def get_stats_by_vector_store(
-        self, vector_store_id: str
-    ) -> dict[str, int]:
+    async def get_stats_by_vector_store(self, db: AsyncSession, vector_store_id: str) -> dict[str, int]:
         rows = await self.repo.get_stats_by_vector_store(
-            self.db,
+            db,
             vector_store_id
         )
         return rows
@@ -298,10 +293,11 @@ class FileService:
     
     async def _check_for_duplication(
         self,
+        db: AsyncSession,
         sha256_hex: str,
         original_name: str
     ) -> None:
-        existing = await self.repo.get_by_sha256(self.db, sha256_hex)
+        existing = await self.repo.get_by_sha256(db, sha256_hex)
         if existing:
             logger.info("File already exists (SHA256 match): %s", original_name)
             raise HTTPException(
@@ -316,6 +312,7 @@ class FileService:
 
     async def _upload_to_s3(
         self,
+        db: AsyncSession,
         tmp_orig: str,
         bucket: str,
         original_name: str,
@@ -333,20 +330,21 @@ class FileService:
             content_type=original_ct
         )
 
-        await self.repo.update(self.db, doc_id, {
+        await self.repo.update(db, doc_id, {
             "s3_object_key": s3_key,
             "status": FileState.STORED
         })
 
     async def _upload_to_openai(
         self,
+        db: AsyncSession,
         tmp_orig: Path,
         original_name: str,
         vector_store_id: str,
         doc_id: int
     ) -> tuple[FileOut, Path | None]:
         # 5. Convert if needed
-        openai_path, openai_filename = await self.converter.convert(
+        openai_path, _ = await self.converter.convert(
             tmp_orig,
             original_name
         )
@@ -357,7 +355,7 @@ class FileService:
         )
 
         # 7. Final update
-        final_doc = await self.repo.update(self.db, doc_id, {
+        final_doc = await self.repo.update(db, doc_id, {
             "storage_key": openai_file.id,
             "status": FileState.INDEXING
         })
@@ -427,16 +425,19 @@ class FileService:
             return "." + name.rsplit(".", 1)[-1].lower()
         return ""
 
-    async def _resolve_vector_store_id(self) -> str:
-        tools = self.user.tools
-        if not tools:
-            raise ValueError("User has no assigned storage.")
-        
-        tools_type = tools[0].type
-        if tools_type != "file_search":
-            raise ValueError(f"User has unsupported tool type: {tools_type}")
-        
-        vector_store_ids = tools[0].vector_store_ids
-        if not vector_store_ids or len(vector_store_ids) == 0:
-            raise ValueError("User has no assigned vector store.")        
-        return vector_store_ids[0]
+    async def _resolve_vector_store_id(self, db: AsyncSession) -> str:
+        # 1) User-specific configuration
+        ids = getattr(self.user, "vector_store_ids", None)
+        if ids and len(ids) > 0 and ids[0]:
+            return ids[0]
+
+        # 2) Default storage fallback
+        default_storage = await self.storage_repo.get_default_storage(db)
+        if default_storage and default_storage.vector_store_id:
+            return default_storage.vector_store_id
+
+        # 3) No storage configured anywhere
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No vector store configured for this user and no default storage set.",
+        )

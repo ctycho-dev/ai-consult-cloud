@@ -58,8 +58,8 @@ class FileOut(BaseModel):
 
     # OpenAI
     vector_store_id: str
-    storage_key: str | None = None            # OpenAI file id, e.g. "file-..."
-    openai_s3_key: str | None = None          # <- this reflects OpenAI’s field (was s3_key in your examples)
+    storage_key: str | None = None
+    openai_s3_key: str | None = None
 
     # --- Deletion Tracking (NEW) ---
     delete_status: DeleteStatus = DeleteStatus.PENDING

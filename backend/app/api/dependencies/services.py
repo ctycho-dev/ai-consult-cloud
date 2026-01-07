@@ -4,10 +4,10 @@ from fastapi import (
     Request,
     Depends
 )
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.domain.user.schema import UserCreateSchema
 from app.enums.enums import UserRole
-from app.domain.storage.service import VectorStoreService
+from app.domain.storage.service import StorageService
 from app.domain.storage.repository import StorageRepository
 from app.domain.file.repository import FileRepository
 from app.domain.file.service import FileService
@@ -25,7 +25,7 @@ from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.infrastructure.yandex.yandex_s3_client import YandexS3Client
 from app.infrastructure.file_converter.file_converter import FileConverter
 from app.middleware.logging import set_user_email
-from app.api.dependencies.db import get_db
+from app.api.dependencies.db import get_db, get_session_factory
 from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.repos import (
     get_file_repo,
@@ -50,7 +50,6 @@ def get_user_service(
 
 
 def get_file_service(
-    db: AsyncSession = Depends(get_db),
     repo: FileRepository = Depends(get_file_repo),
     storage_repo: StorageRepository = Depends(get_storage_repo),
     user: UserOutSchema = Depends(get_current_user),
@@ -60,7 +59,6 @@ def get_file_service(
 ) -> FileService:
 
     return FileService(
-        db=db,
         repo=repo,
         storage_repo=storage_repo,
         user=user,
@@ -71,20 +69,17 @@ def get_file_service(
 
 
 def get_file_public_service(
-    db: AsyncSession = Depends(get_db),
     repo: FileRepository = Depends(get_file_repo),
     yandex_s3_client: YandexS3Client = Depends(get_yandex_s3_client),
 ) -> PublicFileService:
 
     return PublicFileService(
-        db=db,
         repo=repo,
         s3_client=yandex_s3_client,
     )
 
 
 def get_file_bucket_service(
-    db: AsyncSession = Depends(get_db),
     repo: FileRepository = Depends(get_file_repo),
     openai_manager: OpenAIManager = Depends(get_openai_manager),
     yandex_s3_client: YandexS3Client = Depends(get_yandex_s3_client),
@@ -92,7 +87,6 @@ def get_file_bucket_service(
 ) -> FileBucketService:
 
     return FileBucketService(
-        db=db,
         repo=repo,
         manager=openai_manager,
         s3_client=yandex_s3_client,
@@ -101,27 +95,24 @@ def get_file_bucket_service(
 
 
 def get_storage_service(
-    db: AsyncSession = Depends(get_db),
     repo: StorageRepository = Depends(get_storage_repo),
     file_repo: FileRepository = Depends(get_file_repo),
     user: UserOutSchema = Depends(get_current_user),
-) -> VectorStoreService:
+) -> StorageService:
 
     if user.role != UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Forbidden.')
 
-    return VectorStoreService(db=db, repo=repo, file_repo=file_repo, user=user)
+    return StorageService(repo=repo, file_repo=file_repo, user=user)
 
 
 def get_chat_service(
-    db: AsyncSession = Depends(get_db),
     repo: ChatRepository = Depends(get_chat_repo),
     user: UserOutSchema = Depends(get_current_user),
     openai_manager: OpenAIManager = Depends(get_openai_manager),
 ) -> ChatService:
 
     return ChatService(
-        db=db,
         repo=repo,
         user=user,
         manager=openai_manager,
@@ -129,20 +120,19 @@ def get_chat_service(
 
 
 def get_message_service(
-    db: AsyncSession = Depends(get_db),
     repo: MessageRepository = Depends(get_message_repo),
-    storage_repo: StorageRepository = Depends(get_storage_repo),
     chat_repo: ChatRepository = Depends(get_chat_repo),
     user: UserOutSchema = Depends(get_current_user),
     openai_manager: OpenAIManager = Depends(get_openai_manager),
+    session_factory: async_sessionmaker = Depends(get_session_factory),
 ) -> MessageService:
 
     return MessageService(
-        db=db,
         repo=repo,
         chat_repo=chat_repo,
         user=user,
         manager=openai_manager,
+        session_factory=session_factory
     )
 
 

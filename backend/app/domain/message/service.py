@@ -6,7 +6,7 @@ from fastapi import (
     status,
     BackgroundTasks
 )
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from fastapi.encoders import jsonable_encoder
 from app.domain.message.repository import MessageRepository
 from app.domain.chat.repository import ChatRepository
@@ -35,45 +35,33 @@ class MessageService:
 
     def __init__(
         self,
-        db: AsyncSession,
         repo: MessageRepository,
         chat_repo: ChatRepository,
         user: UserOutSchema,
-        manager: OpenAIManager
+        manager: OpenAIManager,
+        session_factory: async_sessionmaker[AsyncSession],
     ):
-        self.db = db
         self.repo = repo
         self.chat_repo = chat_repo
         self.user = user
         self.manager = manager
+        self.session_factory = session_factory
 
-    async def get_all(self) -> list[MessageOut]:
-        """
-        Retrieve all messages from the message repository.
-        """
-        return await self.repo.get_all(self.db)
+    async def get_all(self, db: AsyncSession) -> list[MessageOut]:
+        return await self.repo.get_all(db)
 
-    async def get_by_id(self, message_id: int) -> MessageOut | None:
-        """
-        Retrieve a single message by its ID.
-        """
-        return await self.repo.get_by_id(self.db, message_id)
-    
-    async def get_by_chat_id(self, chat_id: int) -> list[MessageOut]:
-        """
-        Retrieve a single message by its ID.
-        """
-        messages = await self.repo.get_by_chat_id(self.db, chat_id)
-        return messages
+    async def get_by_id(self, db: AsyncSession, message_id: int) -> MessageOut | None:
+        return await self.repo.get_by_id(db, message_id)
 
-    async def delete_by_id(self, message_id: int) -> None:
-        """
-        Delete a message by its ID.
-        """
-        await self.repo.delete_by_id(self.db, message_id)
+    async def get_by_chat_id(self, db: AsyncSession, chat_id: int) -> list[MessageOut]:
+        return await self.repo.get_by_chat_id(db, chat_id)
+
+    async def delete_by_id(self, db: AsyncSession, message_id: int) -> None:
+        await self.repo.delete_by_id(db, message_id)
 
     async def create(
         self,
+        db: AsyncSession,
         data: MessageCreate,
         background_tasks: BackgroundTasks
     ) -> list[MessageOut]:
@@ -89,25 +77,28 @@ class MessageService:
         Raises:
             HTTPException: If the chat, agent, or assistant ID is invalid, or OpenAI fails.
         """
-        # 1. Validate chat and agent
-        chat = await self.chat_repo.get_by_id(self.db, data.chat_id)
+        # 1. Validate chat
+        chat = await self.chat_repo.get_by_id(db, data.chat_id)
         if not chat:
             raise HTTPException(status_code=404, detail="Chat not found")
+        
+        if chat.user_id != self.user.id:
+            raise HTTPException(status_code=403, detail="Not allowed")
 
         if not chat.session_handle:
             raise HTTPException(
                 status_code=400,
-                detail="Chat is missing session_handle (OpenAI thread_id)"
+                detail="Chat is missing session_handle (OpenAI conversation id)"
             )
 
         session_handle = chat.session_handle
 
         # 2. Save the user message
-        user_msg = await self.repo.create(self.db, data)
+        user_msg = await self.repo.create(db, data)
 
         # 3. Save assistant placeholder
         assistant_msg = await self.repo.create(
-            self.db,
+            db,
             MessageCreate(
                 chat_id=data.chat_id,
                 role=UserRole.ASSISTANT,
@@ -117,12 +108,14 @@ class MessageService:
         )
 
         # 3. Process assistant message in background
+        user_snapshot = self.user
         background_tasks.add_task(
             self._process_assistant_response,
-            data.chat_id,
-            assistant_msg.id,
-            session_handle,
-            data.content
+            chat_id=data.chat_id,
+            assistant_msg_id=assistant_msg.id,
+            session_handle=chat.session_handle,
+            user_input=data.content,
+            user=user_snapshot,
         )
 
         return [
@@ -135,14 +128,15 @@ class MessageService:
         chat_id: int,
         assistant_msg_id: int,
         session_handle: str,
-        user_input: str
+        user_input: str,
+        user: UserOutSchema
     ):
-        async with db_manager.session_scope() as db:
+        async with self.session_factory() as db:
             try:
                 reply = await self.manager.send_and_receive(
                     db=db,
                     conv_id=session_handle,
-                    user=self.user,
+                    user=user,
                     user_input=user_input
                 )
     

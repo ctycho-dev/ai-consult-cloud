@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.middleware.rate_limiter import limiter
 from app.api.dependencies.db import get_db
 from app.api.dependencies.services import get_storage_service
-from app.domain.storage.service import VectorStoreService
+from app.domain.storage.service import StorageService
 from app.domain.storage.schema import StorageCreate, StorageUpdate
 from app.core.logger import get_logger
 from app.core.config import settings
@@ -30,7 +30,7 @@ async def create_storage(
     request: Request,
     payload: StorageCreate,
     db: AsyncSession = Depends(get_db),
-    service: VectorStoreService = Depends(get_storage_service),
+    service: StorageService = Depends(get_storage_service),
 ):
     result = await service.create_vector_store(db, payload)
     return result
@@ -44,7 +44,7 @@ async def create_storage(
 async def get_storages(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    service: VectorStoreService = Depends(get_storage_service),
+    service: StorageService = Depends(get_storage_service),
 ):
     docs = await service.get_all(db)
     return docs
@@ -59,7 +59,7 @@ async def get_storage(
     request: Request,
     storage_id: int,
     db: AsyncSession = Depends(get_db),
-    service: VectorStoreService = Depends(get_storage_service),
+    service: StorageService = Depends(get_storage_service),
 ):
     doc = await service.get_by_id(db, storage_id)
     return doc
@@ -75,11 +75,9 @@ async def delete_storage(
     request: Request,
     storage_id: int,
     db: AsyncSession = Depends(get_db),
-    service: VectorStoreService = Depends(get_storage_service),
+    service: StorageService = Depends(get_storage_service),
 ):
     await service.delete_vector_store(db, storage_id)
-    # No body for 204
-    return None
 
 
 @router.patch(
@@ -93,62 +91,60 @@ async def update_storage(
     storage_id: int,
     data: StorageUpdate,
     db: AsyncSession = Depends(get_db),
-    service: VectorStoreService = Depends(get_storage_service),
+    service: StorageService = Depends(get_storage_service),
 ):
-    # If there are other updatable fields, call a general update first.
     if data.default:
         await service.set_default_storage(db, storage_id)
-    # Optionally return updated storage instead of a message
     return {"message": "Updated"}
 
 
-@router.get(
-    "/{store}/files/",
-    summary="List all files in a vector store",
-)
-@limiter.limit("60/minute")
-async def list_files(
-    request: Request,
-    store: str,
-    service: VectorStoreService = Depends(get_storage_service),
-):
-    """
-    List all files in a vector store.
-    """
-    files = await service.get_storage_files(store)
-    return files
+# ======================================
+# OpenAI Vector Store File Operations
+# ======================================
+
+# @router.get(
+#     "/{vector_store_id}/files/",
+#     summary="List all files in a vector store",
+# )
+# @limiter.limit("60/minute")
+# async def list_files(
+#     request: Request,
+#     vector_store_id: str,
+#     service: StorageService = Depends(get_storage_service),
+# ):
+#     """List all files in an OpenAI vector store."""
+#     files = await service.list_vector_store_files(vector_store_id)
+#     return files
 
 
-@router.delete(
-    "/{store}/files/{file_id}",
-    summary="Delete a specific file from a vector store",
-)
-@limiter.limit("20/minute")
-async def delete_file(
-    request: Request,
-    store: str,
-    file_id: str,
-    service: VectorStoreService = Depends(get_storage_service),
-):
-    """
-    Delete a specific file from a vector store.
-    """
-    # If service.delete_file becomes async, make this endpoint async and await it.
-    return service.delete_file(store, file_id)
+# @router.delete(
+#     "/{vector_store_id}/files/{file_id}",
+#     summary="Delete a specific file from a vector store",
+# )
+# @limiter.limit("20/minute")
+# async def delete_file(
+#     request: Request,
+#     vector_store_id: str,
+#     file_id: str,
+#     service: StorageService = Depends(get_storage_service),
+# ):
+#     """Delete a specific file from an OpenAI vector store."""
+#     result = await service.delete_vector_store_file(vector_store_id, file_id)
+#     return result
 
 
-@router.delete(
-    "/{store}/files/",
-    summary="Delete all files from a vector store",
-)
-@limiter.limit("5/minute")
-async def delete_all_files(
-    request: Request,
-    store: str,
-    service: VectorStoreService = Depends(get_storage_service),
-):
-    """
-    Delete all files from a vector store.
-    """
-    result = await service.delete_all_files(store)
-    return result
+
+# @router.delete(
+#     "/{vector_store_id}/files/",
+#     summary="Delete all files from a vector store",
+# )
+# @limiter.limit("5/minute")
+# async def delete_all_files(
+#     request: Request,
+#     vector_store_id: str,
+#     db: AsyncSession = Depends(get_db),
+#     service: StorageService = Depends(get_storage_service),
+# ):
+#     """Delete all files from an OpenAI vector store and clean up DB records."""
+#     result = await service.delete_all_vector_store_files(db, vector_store_id)
+#     return result

@@ -1,7 +1,10 @@
+import sys
 import logging
 import logging.config
 from pathlib import Path
 import yaml
+from app.core.config import settings
+from app.enums.enums import AppMode
 
 
 def setup_logging() -> None:
@@ -13,14 +16,22 @@ def setup_logging() -> None:
         - development: root/app at DEBUG
         - production (or anything else): root/app at INFO
     """
-    with open(Path("logger_config.yaml"), "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
+    if settings.MODE == AppMode.DEV:
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+            handlers=[logging.StreamHandler(sys.stdout)]
+        )
+    else:
+        with open(Path("logger_config.yaml"), "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
 
-    config["root"]["level"] = config["root"].get("level", "INFO")
-    if "app" in config.get("loggers", {}):
-        config["loggers"]["app"]["level"] = config["loggers"]["app"].get("level", "INFO")
+        config["root"]["level"] = config["root"].get("level", "INFO")
+        if "app" in config.get("loggers", {}):
+            config["loggers"]["app"]["level"] = config["loggers"]["app"].get("level", "INFO")
 
-    logging.config.dictConfig(config)
+        logging.config.dictConfig(config)
 
     logging.getLogger("uvicorn.access").disabled = True
     logging.getLogger("uvicorn.access").propagate = False

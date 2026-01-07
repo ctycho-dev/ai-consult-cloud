@@ -30,7 +30,7 @@ class YandexS3Client:
         self.access_key = settings.AWS_ACCESS_KEY_ID
         self.secret_key = settings.AWS_SECRET_ACCESS_KEY
 
-        self._s3 = boto3.client(
+        self.s3 = boto3.client(
             "s3",
             endpoint_url=self.endpoint,
             region_name=self.region,
@@ -43,16 +43,16 @@ class YandexS3Client:
         """Return a list of buckets (requires permissions)."""
         # resp = s3.list_buckets()
         # buckets = resp.get("Buckets", [])
-        return self._s3.list_buckets().get("Buckets", [])
+        return self.s3.list_buckets().get("Buckets", [])
 
     def head_bucket(self, bucket: str) -> None:
         """Raise if bucket doesn't exist or access is denied."""
-        self._s3.head_bucket(Bucket=bucket)
+        self.s3.head_bucket(Bucket=bucket)
 
     # -------- Object ops --------
     # def list_objects(self, bucket: str, prefix: str = "") -> Generator[Dict, None, None]:
     #     """Yield object summaries for a bucket (optionally filtered by prefix)."""
-    #     paginator = self._s3.get_paginator("list_objects_v2")
+    #     paginator = self.s3.get_paginator("list_objects_v2")
     #     for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
     #         for obj in page.get("Contents", []):
     #             yield obj
@@ -60,9 +60,9 @@ class YandexS3Client:
     def list_objects(self, bucket: str, prefix: str = "") -> list[dict]:
 
         ans = []
-        self._s3.head_bucket(Bucket=bucket)
+        self.s3.head_bucket(Bucket=bucket)
 
-        paginator = self._s3.get_paginator("list_objects_v2")
+        paginator = self.s3.get_paginator("list_objects_v2")
         pages = paginator.paginate(Bucket=bucket, Prefix=prefix)
 
         for page in pages:
@@ -105,7 +105,7 @@ class YandexS3Client:
         if public:
             args.setdefault("ACL", "public-read")
 
-        self._s3.upload_file(str(path), bucket, key, ExtraArgs=args)
+        self.s3.upload_file(str(path), bucket, key, ExtraArgs=args)
 
     def download_file(
         self,
@@ -120,14 +120,14 @@ class YandexS3Client:
             dest = dest / Path(key).name
         dest.parent.mkdir(parents=True, exist_ok=True)
 
-        self._s3.download_file(bucket, key, str(dest))
+        self.s3.download_file(bucket, key, str(dest))
 
     def delete_file(self, bucket: str, key: str, version_id: str | None = None) -> dict:
         """Delete object (or a specific version). Returns boto3 response."""
         kwargs = {"Bucket": bucket, "Key": key}
         if version_id:
             kwargs["VersionId"] = version_id
-        return self._s3.delete_object(**kwargs)
+        return self.s3.delete_object(**kwargs)
 
     def object_exists(self, bucket: str, key: str, version_id: str | None = None) -> bool:
         """Check if an object (or version) exists."""
@@ -135,7 +135,7 @@ class YandexS3Client:
             kwargs = {"Bucket": bucket, "Key": key}
             if version_id:
                 kwargs["VersionId"] = version_id
-            self._s3.head_object(**kwargs)
+            self.s3.head_object(**kwargs)
             return True
         except ClientError as e:
             code = e.response.get("Error", {}).get("Code")
@@ -150,7 +150,7 @@ class YandexS3Client:
 
     def presign_get(self, bucket: str, key: str, expires_in: int = 3600) -> str:
         """Return a pre-signed GET URL valid for `expires_in` seconds."""
-        return self._s3.generate_presigned_url(
+        return self.s3.generate_presigned_url(
             "get_object",
             Params={"Bucket": bucket, "Key": key},
             ExpiresIn=expires_in,
@@ -158,7 +158,7 @@ class YandexS3Client:
 
     def presign_put(self, bucket: str, key: str, expires_in: int = 3600) -> str:
         """Return a pre-signed PUT URL valid for `expires_in` seconds."""
-        return self._s3.generate_presigned_url(
+        return self.s3.generate_presigned_url(
             "put_object",
             Params={"Bucket": bucket, "Key": key},
             ExpiresIn=expires_in,
@@ -174,4 +174,4 @@ class YandexS3Client:
         Raises:
             ClientError: If object doesn't exist or access denied.
         """
-        return self._s3.head_object(Bucket=bucket, Key=key)
+        return self.s3.head_object(Bucket=bucket, Key=key)

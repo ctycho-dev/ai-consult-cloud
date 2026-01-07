@@ -5,6 +5,8 @@ from fastapi import (
     Request,
     BackgroundTasks,
 )
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 from app.domain.message.schema import (
@@ -14,10 +16,11 @@ from app.infrastructure.bitrix.bitrix_service import BitrixService
 from app.domain.message.service import MessageService
 from app.infrastructure.redis.client import get_redis_client
 from app.infrastructure.redis.pubsub import RedisPubSub
-from app.api.dependencies import (
+from app.api.dependencies.services import (
     get_message_service,
     get_bitrix_service,
 )
+from app.api.dependencies.db import get_db
 from app.core.logger import get_logger
 from app.core.config import settings
 from app.middleware.rate_limiter import limiter
@@ -72,22 +75,22 @@ async def create_message(
     request: Request,
     message: MessageCreate,
     background_tasks: BackgroundTasks,
-    service: MessageService = Depends(get_message_service)
+    db: AsyncSession = Depends(get_db),
+    service: MessageService = Depends(get_message_service),
 ):
-    """Create a new message and trigger assistant response."""
-    created_message = await service.create(message, background_tasks)
-    return created_message
+    """Create a user message and enqueue assistant response generation."""
+    return await service.create(db, message, background_tasks)
 
 
 @router.get("/", status_code=200)
 @limiter.limit("60/minute")
 async def get_all_messages(
     request: Request,
-    service: MessageService = Depends(get_message_service)
+    db: AsyncSession = Depends(get_db),
+    service: MessageService = Depends(get_message_service),
 ):
-    """Retrieve all messages."""
-    messages = await service.get_all()
-    return messages
+    """List all messages."""
+    return await service.get_all(db)
 
 
 @router.get("/chat/{chat_id}", status_code=200)
@@ -95,11 +98,11 @@ async def get_all_messages(
 async def get_messages_by_chat_id(
     request: Request,
     chat_id: int,
-    service: MessageService = Depends(get_message_service)
+    db: AsyncSession = Depends(get_db),
+    service: MessageService = Depends(get_message_service),
 ):
-    """Retrieve all messages for a specific chat."""
-    messages = await service.get_by_chat_id(chat_id)
-    return messages
+    """List all messages for a chat."""
+    return await service.get_by_chat_id(db, chat_id)
 
 
 @router.get("/{message_id}", status_code=200)
@@ -107,11 +110,11 @@ async def get_messages_by_chat_id(
 async def get_message_by_id(
     request: Request,
     message_id: int,
-    service: MessageService = Depends(get_message_service)
+    db: AsyncSession = Depends(get_db),
+    service: MessageService = Depends(get_message_service),
 ):
-    """Retrieve a single message by ID."""
-    message = await service.get_by_id(message_id)
-    return message
+    """Get a message by ID."""
+    return await service.get_by_id(db, message_id)
 
 
 @router.delete("/{message_id}", status_code=204)
@@ -119,10 +122,12 @@ async def get_message_by_id(
 async def delete_message_by_id(
     request: Request,
     message_id: int,
-    service: MessageService = Depends(get_message_service)
+    db: AsyncSession = Depends(get_db),
+    service: MessageService = Depends(get_message_service),
 ):
     """Delete a message by ID."""
-    await service.delete_by_id(message_id)
+    await service.delete_by_id(db, message_id)
+
 
 
 @router.get("/sse/{chat_id}")

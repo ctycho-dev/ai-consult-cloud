@@ -5,22 +5,24 @@ from app.enums.enums import (
     UserRole,
     MessageState
 )
+from app.common.schema import CamelModel
 
 
-class SourceInfo(BaseModel):
+
+class SourceInfo(CamelModel):
     
     file_id: int
     file_name: str | None = None
     page: int | None = None
 
 
-class ResultPayload(BaseModel):
+class ResultPayload(CamelModel):
 
     answer: str
     sources: list[SourceInfo] | None
 
 
-class MessageCreate(BaseModel):
+class MessageCreate(CamelModel):
     """
     Schema for creating a new Chat entity (e.g., Chat or related object).
 
@@ -35,7 +37,7 @@ class MessageCreate(BaseModel):
     state: MessageState = MessageState.CREATED
 
 
-class MessageOut(BaseModel):
+class MessageOut(CamelModel):
     """
     Schema for returning Chat details.
 
@@ -52,18 +54,3 @@ class MessageOut(BaseModel):
     state: str
     role: UserRole
     created_at: datetime
-
-    @field_serializer('created_at')
-    def serialize_created_at(self, created_at: datetime) -> str:
-        """
-        Serialize the `created_at` field to an ISO 8601 string format.
-
-        Args:
-            created_at (datetime): The datetime to serialize.
-
-        Returns:
-            str: The ISO 8601 formatted datetime string.
-        """
-        return created_at.isoformat()
-
-    model_config = ConfigDict(from_attributes=True)

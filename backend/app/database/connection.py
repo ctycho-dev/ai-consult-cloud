@@ -74,6 +74,11 @@ class DatabaseManager:
         finally:
             await session.close()
 
+    def get_session_factory(self) -> sessionmaker:
+        if not self.async_session:
+            raise RuntimeError("Session factory not initialized")
+        return self.async_session
+
     async def close(self):
         """
         Dispose the engine.
