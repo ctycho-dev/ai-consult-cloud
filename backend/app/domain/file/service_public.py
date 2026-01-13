@@ -64,8 +64,8 @@ class PublicFileService:
             )
             headers["Access-Control-Expose-Headers"] = "Content-Disposition"
 
-        if file.size:
-            headers["Content-Length"] = str(file.size)
+        # if file.size:
+        #     headers["Content-Length"] = str(file.size)
 
         return StreamingResponse(
             generate(),
