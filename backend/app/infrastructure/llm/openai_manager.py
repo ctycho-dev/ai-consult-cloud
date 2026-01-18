@@ -13,8 +13,8 @@ from openai import (
 )
 from app.domain.user.schema import UserOutSchema
 from app.domain.message.schema import ResultPayload, SourceInfo
-from app.domain.file.repository import FileRepository
-from app.domain.storage.repository import StorageRepository
+from app.domain.file.repository import FileRepo
+from app.domain.storage.repository import StorageRepo
 from app.core.logger import get_logger
 from app.core.decorators import log_timing
 
@@ -26,8 +26,8 @@ class OpenAIManager:
     def __init__(
         self,
         client: AsyncOpenAI,
-        file_repo: FileRepository,
-        storage_repo: StorageRepository
+        file_repo: FileRepo,
+        storage_repo: StorageRepo
     ):
         """
         Initialize OpenAIManager with OpenAI client and file repository.
@@ -83,9 +83,14 @@ class OpenAIManager:
         db: AsyncSession,
         conv_id: str,
         user: UserOutSchema,
-        user_input: str
+        user_input: str,
+        vector_store_id: str | None
     ) -> ResultPayload:
-        vector_store_ids = await self.get_vector_store_ids(db, user)
+        if vector_store_id:
+            vector_store_ids = [vector_store_id]
+        else:
+            vector_store_ids = await self.get_vector_store_ids(db, user)
+        # vector_store_ids = await self.get_vector_store_ids(db, user)
         tools_arg = self._get_user_tools(vector_store_ids)
         model = user.model or "gpt-4o-mini"
 
@@ -93,9 +98,6 @@ class OpenAIManager:
         if user.source == 'bitrix':
             instructions = self._get_bitrix_instruction()
         else:
-            # parts = [getattr(user, "user_instructions", None), getattr(user, "instructions", None)]
-            # merged_instructions = "\n\n".join(p for p in parts if p).strip()
-            # instructions = merged_instructions or NOT_GIVEN
             instructions = self._get_web_instruction()
 
         resp = await self.client.responses.create(
@@ -132,7 +134,8 @@ class OpenAIManager:
         db: AsyncSession,
         conv_id: str,
         user: UserOutSchema,
-        user_input: str
+        user_input: str,
+        vector_store_id: str | None = None
     ) -> ResultPayload:
         """
         Send user input and receive AI response with retry on transient errors.
@@ -148,7 +151,7 @@ class OpenAIManager:
             #     # Optionally create new conversation here or throw exception
             #     logger.warning(f"Conversation {conv_id} inactive, consider creating a new one.")
 
-            return await self.create_response(db, conv_id, user, user_input)
+            return await self.create_response(db, conv_id, user, user_input, vector_store_id)
 
         except (InternalServerError, RateLimitError, APIError) as e:
             logger.exception("OpenAIManager send_and_receive failed with retryable error: %s", e)

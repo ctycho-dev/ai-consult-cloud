@@ -18,7 +18,6 @@ import { IconTrash, IconStar } from '@tabler/icons-react';
 import { Modal } from "@/components/ui/modal";
 import PrimaryButton from "@/components/ui/primaryButton";
 import SecondaryButton from "@/components/ui/secondaryButton";
-import { SiHomeassistant } from "react-icons/si";
 import { InputField } from './inputFiled';
 
 interface TabStorageProps { }
@@ -166,7 +165,9 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                 <thead>
                     <tr className="border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Название</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Vector Store ID</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Бот</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">S3</th>
+                        {/* <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Vector Store ID</th> */}
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Статистика</th>
                         <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Создано</th>
                         <th className="h-12 px-4 align-middle font-medium text-muted-foreground text-right">Действия</th>
@@ -175,7 +176,7 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                 <tbody>
                     {storages.map(item => {
                         return (
-                            <tr className={`border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted ${activeVsId == item.vector_store_id ? 'bg-gray-100' : ''}`} key={item.id}>
+                            <tr className={`border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted ${activeVsId == item.vectorStoreId ? 'bg-gray-100' : ''}`} key={item.id}>
                                 <td className="p-4 align-middle">
                                     <div className="flex gap-2">
                                         {item.name}
@@ -186,11 +187,12 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                                         )}
                                     </div>
                                 </td>
-                                <td className="p-4 align-middle">{item.vector_store_id}</td>
+                                <td className="p-4 align-middle">{item.botName}</td>
+                                <td className="p-4 align-middle">{item.s3Bucket}</td>
                                 <td className="p-4 align-middle">
-                                    <StorageStats vectorStoreId={item.vector_store_id} />
+                                    <StorageStats vectorStoreId={item.vectorStoreId} />
                                 </td>
-                                <td className="p-4 align-middle">{item.created_at.split('T')[0]}</td>
+                                <td className="p-4 align-middle">{item.createdAt.split('T')[0]}</td>
                                 <td className="p-4 align-middle text-right relative">
                                     <Menu shadow="md" width={250}>
                                         <Menu.Target>
@@ -202,7 +204,7 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                                             <Menu.Label>Действия</Menu.Label>
                                             {/* <Menu.Item
                                                 leftSection={<SiHomeassistant size={14} />}
-                                                onClick={() => { handleSelectStorage(item.vector_store_id) }}
+                                                onClick={() => { handleSelectStorage(item.vectorStoreId) }}
                                             >
                                                 Выбрать
                                             </Menu.Item> */}
@@ -283,7 +285,7 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
 };
 
 function getUserVectorStoreId(user: any): string | null {
-    return user?.tools?.find((t: any) => t?.type === "file_search")?.vector_store_ids?.[0] ?? user?.vector_store_id ?? null;
+    return user?.tools?.find((t: any) => t?.type === "file_search")?.vectorStoreIds?.[0] ?? user?.vectorStoreId ?? null;
 }
 
 

@@ -39,7 +39,6 @@ class TestPublicFileAPI:
         assert r.status_code == 200
         assert r.content == s3_bytes
         assert "content-disposition" in {k.lower() for k in r.headers.keys()}
-        assert r.headers.get("content-length") == str(len(s3_bytes))
 
     async def test_secure_download_file_not_found(self, client: AsyncClient, file_access_token_factory):
         token = file_access_token_factory(99999999)

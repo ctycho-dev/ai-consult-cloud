@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.domain.user.schema import UserCreateSchema
 from app.enums.enums import UserRole
 from app.domain.storage.service import StorageService
-from app.domain.storage.repository import StorageRepository
-from app.domain.file.repository import FileRepository
+from app.domain.storage.repository import StorageRepo
+from app.domain.file.repository import FileRepo
 from app.domain.file.service import FileService
 from app.domain.file.service_public import PublicFileService
 from app.domain.file.bucket_service import FileBucketService
@@ -43,15 +43,15 @@ from app.api.dependencies.integrations import (
 
 def get_user_service(
     repo: UserRepository = Depends(get_user_repo),
-    vs_repo: StorageRepository = Depends(get_storage_repo),
+    vs_repo: StorageRepo = Depends(get_storage_repo),
 ) -> UserService:
 
     return UserService(repo=repo, vs_repo=vs_repo)
 
 
 def get_file_service(
-    repo: FileRepository = Depends(get_file_repo),
-    storage_repo: StorageRepository = Depends(get_storage_repo),
+    repo: FileRepo = Depends(get_file_repo),
+    storage_repo: StorageRepo = Depends(get_storage_repo),
     user: UserOutSchema = Depends(get_current_user),
     openai_manager: OpenAIManager = Depends(get_openai_manager),
     yandex_s3_client: YandexS3Client = Depends(get_yandex_s3_client),
@@ -69,7 +69,7 @@ def get_file_service(
 
 
 def get_file_public_service(
-    repo: FileRepository = Depends(get_file_repo),
+    repo: FileRepo = Depends(get_file_repo),
     yandex_s3_client: YandexS3Client = Depends(get_yandex_s3_client),
 ) -> PublicFileService:
 
@@ -80,23 +80,25 @@ def get_file_public_service(
 
 
 def get_file_bucket_service(
-    repo: FileRepository = Depends(get_file_repo),
+    repo: FileRepo = Depends(get_file_repo),
     openai_manager: OpenAIManager = Depends(get_openai_manager),
     yandex_s3_client: YandexS3Client = Depends(get_yandex_s3_client),
-    converter: FileConverter = Depends(get_file_converter)
+    converter: FileConverter = Depends(get_file_converter),
+    storage_repo: StorageRepo = Depends(get_storage_repo),
 ) -> FileBucketService:
 
     return FileBucketService(
         repo=repo,
         manager=openai_manager,
         s3_client=yandex_s3_client,
-        converter=converter
+        converter=converter,
+        storage_repo=storage_repo
     )
 
 
 def get_storage_service(
-    repo: StorageRepository = Depends(get_storage_repo),
-    file_repo: FileRepository = Depends(get_file_repo),
+    repo: StorageRepo = Depends(get_storage_repo),
+    file_repo: FileRepo = Depends(get_file_repo),
     user: UserOutSchema = Depends(get_current_user),
 ) -> StorageService:
 
@@ -188,6 +190,7 @@ def get_bitrix_service(
     chat_repo: ChatRepository = Depends(get_chat_repo),
     user: UserOutSchema = Depends(get_bitrix_user_from_request),
     openai_manager: OpenAIManager = Depends(get_openai_manager),
+    storage_repo: StorageRepo = Depends(get_storage_repo),
 ) -> BitrixService:
     """Get BitrixService with proper dependency injection - same pattern as other services."""
     return BitrixService(
@@ -195,4 +198,5 @@ def get_bitrix_service(
         chat_repo=chat_repo,
         user=user,
         openai_manager=openai_manager,
+        storage_repo=storage_repo
     )

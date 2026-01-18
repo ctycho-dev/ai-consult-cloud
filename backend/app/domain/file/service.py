@@ -12,8 +12,8 @@ from fastapi import (
 )
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.domain.file.repository import FileRepository
-from app.domain.storage.repository import StorageRepository
+from app.domain.file.repository import FileRepo
+from app.domain.storage.repository import StorageRepo
 from app.domain.file.schema import FileCreate, FileOut
 from app.domain.user.schema import UserOutSchema
 from app.infrastructure.llm.openai_manager import OpenAIManager
@@ -33,8 +33,8 @@ CHUNK_SIZE = 1024 * 1024  # 1 MB
 class FileService:
     def __init__(
         self,
-        repo: FileRepository,
-        storage_repo: StorageRepository,
+        repo: FileRepo,
+        storage_repo: StorageRepo,
         user: UserOutSchema,
         manager: OpenAIManager,
         s3_client: YandexS3Client,

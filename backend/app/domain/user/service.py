@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.user.repository import UserRepository
-from app.domain.storage.repository import StorageRepository
+from app.domain.storage.repository import StorageRepo
 from app.domain.user.schema import (
     UserCreateSchema,
     UserOutSchema,
@@ -21,7 +21,7 @@ class UserService:
     def __init__(
         self,
         repo: UserRepository,
-        vs_repo: StorageRepository,
+        vs_repo: StorageRepo,
     ):
         self.repo = repo
         self.vs_repo = vs_repo

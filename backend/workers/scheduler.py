@@ -13,6 +13,12 @@ from workers.delete_worker import process_deletions
 from workers.weekly_sync_worker import weekly_sync
 
 
+SYNC_JOBS = [
+    {"id": "sync_bitrix", "bucket": "bitrix-sync", "prefix": "", "hour": 2, "minute": 30},
+    {"id": "sync_package", "bucket": "package", "prefix": "", "hour": 2, "minute": 45},
+]
+
+
 def main():
     logging.basicConfig(
         level=logging.INFO,
@@ -64,16 +70,21 @@ def main():
     )
 
     # Worker 4: Weekly S3 reconciliation - Sundays at 2 AM Moscow time
-    scheduler.add_job(
-        weekly_sync,
-        CronTrigger(
-            hour=2,
-            minute=30,
-            timezone='Europe/Moscow'
-        ),
-        id='weekly_sync_worker',
-        max_instances=1
-    )
+    for job in SYNC_JOBS:
+        scheduler.add_job(
+            weekly_sync,
+            CronTrigger(
+                hour=job["hour"],
+                minute=job["minute"],
+                timezone='Europe/Moscow'
+            ),
+            kwargs={
+                "bucket_name": job["bucket"], 
+                "prefix": job["prefix"]
+            },
+            id=job["id"],
+            max_instances=1
+        )
 
     scheduler.start()
     logger.info("APScheduler started with 3 workers")

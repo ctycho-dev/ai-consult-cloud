@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.user.service import UserService
 from app.domain.user.repository import UserRepository
-from app.domain.storage.repository import StorageRepository
+from app.domain.storage.repository import StorageRepo
 from app.domain.user.schema import UserOutSchema
 from app.enums.enums import UserRole
 
@@ -24,7 +24,7 @@ def user_repo() -> AsyncMock:
 
 @pytest.fixture
 def vs_repo() -> AsyncMock:
-    return AsyncMock(spec=StorageRepository)
+    return AsyncMock(spec=StorageRepo)
 
 
 @pytest.fixture

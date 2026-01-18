@@ -3,13 +3,6 @@ from pydantic import SecretStr, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def get_env_file():
-    mode = os.getenv('mode', 'prod')
-    return '../.env.dev' if mode in ['dev', 'test'] else '.env'
-    # return '../.env.dev' if mode in ['dev', 'test'] else '../.env'
-    # return f'../.env.{mode}' if mode in ['dev', 'test'] else '.env'
-
-
 class ApiV1Prefix(BaseModel):
     prefix: str = "/api/v1"
     chat: str = "/chat"
@@ -30,7 +23,7 @@ class ApiPrefix(BaseModel):
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=['.env', get_env_file()],
+        env_file=['.env', '../.env'],
         env_file_encoding='utf-8',
         extra="allow",
         case_sensitive=False,

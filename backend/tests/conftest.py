@@ -102,7 +102,9 @@ async def db_storage(session_factory, default_vector_store_id):
             storage = Storage(
                 name="Default Test Storage",
                 vector_store_id=default_vector_store_id,
-                default=True
+                default=True,
+                s3_bucket='test-bucket',
+                bot_id='357'
             )
 
             session.add(storage)

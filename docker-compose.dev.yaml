@@ -54,8 +54,6 @@ services:
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-    # env_file:
-    #   - .env.dev
     networks:
       - assistant-cloud-network
     command: ["sh", "-c", "redis-server --bind 0.0.0.0 --requirepass secret"]

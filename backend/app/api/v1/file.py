@@ -52,7 +52,7 @@ async def download_file(
 
 
 @router.get("/secure-download")
-@limiter.limit("10/minute")
+@limiter.limit("30/minute")
 async def secure_file_download(
     request: Request,
     token: str,

@@ -17,18 +17,19 @@ from .make_s3 import make_s3
 
 logger = get_logger()
 
-ALLOWED_EXTENSIONS = {'.pdf', '.xls', '.xlsx', '.xlsm', '.doc', '.docx'}
+ALLOWED_EXTENSIONS = {
+    ".pdf", ".doc", ".docx", ".pptx",
+    ".xls", ".xlsx", ".xlsm", ".txt", ".md", ".html", ".json"
+}
 API_URL = f"{settings.BASE_URL}/api/v1/file/yandex/storage-event"
 WEBHOOK_TOKEN = settings.YANDEX_WEBHOOK_TOKEN.get_secret_value()
-S3_BUCKET = 'bitrix-sync'
-S3_PREFIX = ''
 LOOKBACK_DAYS = 2
 BATCH_SIZE = 15
 RATE_LIMIT_DELAY = 1
 
 
 @log_timing("weekly_sync")
-async def weekly_sync():
+async def weekly_sync(bucket_name: str, prefix: str = ''):
     """
     Weekly reconciliation: scan S3 for files modified/deleted in last 10 days
     and send events for any that might have been missed by webhooks.
@@ -39,24 +40,28 @@ async def weekly_sync():
     cutoff_time = datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)
     
     try:
-        s3.head_bucket(Bucket=S3_BUCKET)
+        s3.head_bucket(Bucket=bucket_name)
     except ClientError as e:
-        logger.error(f"Cannot access S3 bucket {S3_BUCKET}: {e}")
+        logger.error(f"Cannot access S3 bucket {bucket_name}: {e}")
         return
     
     # Check if versioning is enabled
     try:
-        versioning = s3.get_bucket_versioning(Bucket=S3_BUCKET)
+        versioning = s3.get_bucket_versioning(Bucket=bucket_name)
         versioning_enabled = versioning.get('Status') == 'Enabled'
     except ClientError:
         versioning_enabled = False
     
     if versioning_enabled:
         logger.info("✅ Versioning enabled - tracking creates AND deletes")
-        recent_activity = await scan_with_versioning(s3, cutoff_time)
+        recent_activity = await scan_with_versioning(
+            s3, cutoff_time, bucket_name, prefix
+        )
     else:
         logger.warning("⚠️ Versioning disabled - tracking creates only")
-        recent_activity = await scan_without_versioning(s3, cutoff_time)
+        recent_activity = await scan_without_versioning(
+            s3, cutoff_time, bucket_name, prefix
+        )
     
     create_events = [e for e in recent_activity if e["action"] == "create"]
     delete_events = [e for e in recent_activity if e["action"] == "delete"]
@@ -71,15 +76,17 @@ async def weekly_sync():
         return
     
     # Send events to backend
-    await send_events_to_backend(create_events, delete_events)
+    await send_events_to_backend(create_events, delete_events, bucket_name)
 
 
-async def scan_without_versioning(s3, cutoff_time: datetime) -> list:
+async def scan_without_versioning(
+    s3, cutoff_time: datetime, bucket_name: str, prefix: str
+) -> list:
     """Scan S3 without versioning (creates only)"""
     paginator = s3.get_paginator("list_objects_v2")
     pages = paginator.paginate(
-        Bucket=S3_BUCKET,
-        Prefix=S3_PREFIX,
+        Bucket=bucket_name,
+        Prefix=prefix,
         PaginationConfig={"PageSize": 1000}
     )
     
@@ -107,12 +114,14 @@ async def scan_without_versioning(s3, cutoff_time: datetime) -> list:
     return recent_files
 
 
-async def scan_with_versioning(s3, cutoff_time: datetime) -> list:
+async def scan_with_versioning(
+    s3, cutoff_time: datetime, bucket_name: str, prefix: str
+) -> list:
     """Scan S3 with versioning (creates + deletes)"""
     paginator = s3.get_paginator("list_object_versions")
     pages = paginator.paginate(
-        Bucket=S3_BUCKET,
-        Prefix=S3_PREFIX,
+        Bucket=bucket_name,
+        Prefix=prefix,
         PaginationConfig={"PageSize": 1000}
     )
     
@@ -166,7 +175,7 @@ async def scan_with_versioning(s3, cutoff_time: datetime) -> list:
     return recent_activity
 
 
-async def send_events_to_backend(create_events: list, delete_events: list):
+async def send_events_to_backend(create_events: list, delete_events: list, bucket_name: str):
     """Send create and delete events to backend API"""
     headers = {
         "X-Webhook-Token": WEBHOOK_TOKEN,
@@ -181,7 +190,7 @@ async def send_events_to_backend(create_events: list, delete_events: list):
         if create_events:
             logger.info(f"Sending {len(create_events)} create events...")
             stats = await send_event_batch(
-                session, headers, create_events, "ObjectCreate"
+                session, headers, create_events, "ObjectCreate", bucket_name
             )
             uploaded += stats["uploaded"]
             failed += stats["failed"]
@@ -190,7 +199,7 @@ async def send_events_to_backend(create_events: list, delete_events: list):
         if delete_events:
             logger.info(f"Sending {len(delete_events)} delete events...")
             stats = await send_event_batch(
-                session, headers, delete_events, "ObjectDelete"
+                session, headers, delete_events, "ObjectDelete", bucket_name
             )
             uploaded += stats["uploaded"]
             failed += stats["failed"]
@@ -204,7 +213,8 @@ async def send_event_batch(
     session: aiohttp.ClientSession,
     headers: dict,
     events: list,
-    event_type: str
+    event_type: str,
+    bucket_name: str
 ) -> dict:
     """Send a batch of events to backend"""
     uploaded = 0
@@ -232,7 +242,7 @@ async def send_event_batch(
                     "folder_id": "b1gafc0lslmrijqnkoja"
                 },
                 "details": {
-                    "bucket_id": S3_BUCKET,
+                    "bucket_id": bucket_name,
                     "object_id": file_data["key"]
                 }
             })
@@ -267,5 +277,5 @@ async def send_event_batch(
     return {"uploaded": uploaded, "failed": failed}
 
 
-if __name__ == "__main__":
-    asyncio.run(weekly_sync())
+# if __name__ == "__main__":
+#     asyncio.run(weekly_sync())

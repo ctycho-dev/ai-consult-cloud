@@ -1,8 +1,8 @@
 from fastapi import Depends
 from openai import AsyncOpenAI
 
-from app.domain.file.repository import FileRepository
-from app.domain.storage.repository import StorageRepository
+from app.domain.file.repository import FileRepo
+from app.domain.storage.repository import StorageRepo
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.infrastructure.yandex.yandex_s3_client import YandexS3Client
 from app.infrastructure.file_converter.file_converter import FileConverter
@@ -18,8 +18,8 @@ def get_file_converter() -> FileConverter:
 
 
 def get_openai_manager(
-    file_repo: FileRepository = Depends(get_file_repo),
-    storage_repo: StorageRepository = Depends(get_storage_repo)
+    file_repo: FileRepo = Depends(get_file_repo),
+    storage_repo: StorageRepo = Depends(get_storage_repo)
 ) -> OpenAIManager:
     client = AsyncOpenAI(
         api_key=settings.OPENAI_API_KEY,

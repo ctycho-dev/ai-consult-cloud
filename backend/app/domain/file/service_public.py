@@ -4,9 +4,8 @@ from fastapi import (
 )
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.domain.file.repository import FileRepository
+from app.domain.file.repository import FileRepo
 from app.infrastructure.yandex.yandex_s3_client import YandexS3Client
-
 from app.core.logger import get_logger
 
 logger = get_logger()
@@ -17,7 +16,7 @@ CHUNK_SIZE = 1024 * 1024  # 1 MB
 class PublicFileService:
     def __init__(
         self,
-        repo: FileRepository,
+        repo: FileRepo,
         s3_client: YandexS3Client,
     ):
         self.repo = repo
@@ -31,8 +30,7 @@ class PublicFileService:
         
         if not file.s3_bucket or not file.s3_object_key:
             raise HTTPException(status_code=404, detail="File not available for download")
-        
-        # self.s3_client.download_file(file.s3_bucket, file.s3_object_key)
+
         def generate():
             response = self.s3_client.s3.get_object(
                 Bucket=file.s3_bucket, 
@@ -63,9 +61,6 @@ class PublicFileService:
                 f"filename*=UTF-8''{encoded_filename}"
             )
             headers["Access-Control-Expose-Headers"] = "Content-Disposition"
-
-        # if file.size:
-        #     headers["Content-Length"] = str(file.size)
 
         return StreamingResponse(
             generate(),

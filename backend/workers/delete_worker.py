@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from openai import NotFoundError, APIError, AsyncOpenAI
 
 from app.domain.file.model import File
-from app.domain.file.repository import FileRepository
-from app.domain.storage.repository import StorageRepository
+from app.domain.file.repository import FileRepo
+from app.domain.storage.repository import StorageRepo
 from app.enums.enums import FileState
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.core.config import settings
@@ -28,8 +28,8 @@ async def process_deletions():
     
     async with AsyncSession(engine, expire_on_commit=False) as session:
 
-        file_repo = FileRepository()
-        storage_repo = StorageRepository()
+        file_repo = FileRepo()
+        storage_repo = StorageRepo()
         openai_client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
             timeout=70

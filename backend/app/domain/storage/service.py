@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prettytable import from_csv
 from app.core.config import settings
 from app.core.logger import get_logger
-from app.domain.storage.repository import StorageRepository
-from app.domain.file.repository import FileRepository
+from app.domain.storage.repository import StorageRepo
+from app.domain.file.repository import FileRepo
 from app.domain.user.schema import UserOutSchema
 from app.domain.storage.schema import StorageCreate, StorageOut
 
@@ -20,8 +20,8 @@ VECTOR_STORE_JSON = "vector_store.json"
 class StorageService:
     def __init__(
         self,
-        repo: StorageRepository,
-        file_repo: FileRepository,
+        repo: StorageRepo,
+        file_repo: FileRepo,
         user: UserOutSchema
     ):
         self.repo = repo
