@@ -72,13 +72,14 @@ class FileBucketService:
             if "ObjectCreate" in event_type:
                 await self._handle_create(db, storage, bucket_id, object_id)
             elif "ObjectDelete" in event_type:
-                await self._handle_delete(db, object_id)
+                await self._handle_delete(db, bucket_id, object_id)
 
     async def _handle_create(
         self, db: AsyncSession, storage: StorageOut, bucket: str, s3_key: str
     ) -> None:
-        existing = await self.repo.get_by_s3_object_key(db, s3_key)
+        existing = await self.repo.get_by_s3_bucket_and_key(db, bucket, s3_key)
         if existing:
+            logger.warning(f'File exists: {bucket} - {s3_key}')
             if existing.status == FileState.DELETING:
                 existing.status = FileState.STORED
                 existing.origin = FileOrigin.S3_IMPORT
@@ -105,10 +106,11 @@ class FileBucketService:
         )
         await self.repo.create(db, file)
 
-    async def _handle_delete(self, db: AsyncSession, s3_key: str) -> None:
-        existing = await self.repo.get_by_s3_object_key(db, s3_key)
+    async def _handle_delete(self, db: AsyncSession, bucket: str, s3_key: str) -> None:
+        existing = await self.repo.get_by_s3_bucket_and_key(db, bucket, s3_key)
         logger.info(f'_handle_delete: {existing}')
         if not existing:
+            logger.warning(f'File doesnt exist: {bucket} - {s3_key}')
             return
         existing.status = FileState.DELETING
         await self.repo.update(db, existing.id, existing)

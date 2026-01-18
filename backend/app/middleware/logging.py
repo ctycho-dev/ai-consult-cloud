@@ -47,41 +47,10 @@ class AccessLogMiddleware:
         if scope["path"] in self.SKIP_PATHS:
             return await self.app(scope, receive, send)
         
-        headers = dict(scope.get("headers") or [])
-
         rid = dict(scope["headers"]).get(b"x-request-id", b"").decode() or str(uuid.uuid4())
         token = _request_id.set(rid)
         start = time.perf_counter()
         scope["user_email"] = None
-
-
-        # ---- Extract debug info (Bitrix visibility) ----
-        xff = headers.get(b"x-forwarded-for", b"").decode()
-        xri = headers.get(b"x-real-ip", b"").decode()
-
-        client_ip = None
-        if xff:
-            client_ip = xff.split(",")[0].strip()
-        elif xri:
-            client_ip = xri.strip()
-        elif scope.get("client"):
-            client_ip = scope["client"][0]
-
-        user_agent = headers.get(b"user-agent", b"").decode()
-        content_type = headers.get(b"content-type", b"").decode()
-        content_length = headers.get(b"content-length", b"").decode()
-        host = headers.get(b"host", b"").decode()
-
-        # Log request start (so we know if Bitrix hits at all)
-        logger.info("http_request_start", extra={
-            "method": scope.get("method"),
-            "path": scope.get("path"),
-            "client_ip": client_ip,
-            "host": host or None,
-            "user_agent": user_agent or None,
-            "content_type": content_type or None,
-            "content_length": content_length or None,
-        })
 
         async def send_wrapper(message):
 
