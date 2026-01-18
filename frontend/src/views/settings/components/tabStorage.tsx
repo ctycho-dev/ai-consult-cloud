@@ -208,7 +208,7 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                                             >
                                                 Выбрать
                                             </Menu.Item> */}
-                                            {!item.default && (
+                                            {/* {!item.default && (
                                                 <Menu.Item
                                                     leftSection={<IconStar size={14} />}
                                                     onClick={() => handleSetAsDefault(item.id)}
@@ -216,7 +216,7 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                                                 >
                                                     {loadingStates[item.id] ? 'Установка...' : 'Установить по умолчанию'}
                                                 </Menu.Item>
-                                            )}
+                                            )} */}
                                             {user?.role == Role.ADMIN &&
                                                 <Menu.Item
                                                     color="red"

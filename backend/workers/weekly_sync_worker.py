@@ -277,5 +277,5 @@ async def send_event_batch(
     return {"uploaded": uploaded, "failed": failed}
 
 
-# if __name__ == "__main__":
-#     asyncio.run(weekly_sync())
+if __name__ == "__main__":
+    asyncio.run(weekly_sync('bitrix-sync'))
