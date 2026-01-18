@@ -25,6 +25,7 @@ ENV/
 # Environment Files
 .env
 .env.dev
+.env.prod
 .env.local
 .env.*.local
 

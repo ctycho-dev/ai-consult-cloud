@@ -3,9 +3,12 @@ import { UploadStatus } from "@/enums/enums"
 export interface IStorage {
     id: string
     name: string
-    vector_store_id: UploadStatus
+    vectorStoreId: UploadStatus
     default: boolean
-    created_at: string
+    createdAt: string
+    botId: string
+    botName: string
+    s3Bucket: string
 }
 
 export interface IStorageCreate {

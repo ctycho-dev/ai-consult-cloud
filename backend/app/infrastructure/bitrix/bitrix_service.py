@@ -1,16 +1,14 @@
 import httpx
 import asyncio
-import time
-from fastapi import HTTPException
+from dataclasses import dataclass
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.ext.asyncio import AsyncSession
 from urllib.parse import unquote
-from app.core.logger import get_logger
 from app.core.config import settings
 from app.domain.message.repository import MessageRepository
 from app.domain.chat.repository import ChatRepository
-from app.domain.user.schema import UserOut
+from app.domain.storage.repository import StorageRepo
+from app.domain.user.schema import UserOutSchema
 from app.infrastructure.llm.openai_manager import OpenAIManager
 from app.domain.message.schema import MessageCreate
 from app.domain.chat.schema import ChatCreate, ChatOut
@@ -20,9 +18,20 @@ from app.utils.oauth2 import create_temporary_access_token
 from app.database.connection import db_manager
 from app.infrastructure.redis.client import get_redis_client
 from app.core.decorators import log_timing
+from app.core.logger import get_logger
 
 
 logger = get_logger()
+
+
+@dataclass(frozen=True)
+class BitrixWebhook:
+    event: str
+    bot_id: str
+    dialog_id: str
+    message_text: str
+    message_id: str
+    user_id: str
 
 
 class BitrixService:
@@ -33,108 +42,97 @@ class BitrixService:
     
     def __init__(
         self,
-        # db: AsyncSession,
         message_repo: MessageRepository,
         chat_repo: ChatRepository,
-        user: UserOut,
-        openai_manager: OpenAIManager
+        user: UserOutSchema,
+        openai_manager: OpenAIManager,
+        storage_repo: StorageRepo
     ):
         # Dependencies
         self.message_repo = message_repo
         self.chat_repo = chat_repo
         self.user = user
         self.openai_manager = openai_manager
+        self.storage_repo = storage_repo
 
         # Security settings
         self.expected_domain = "crm.clever-trading.ru"
-        self.expected_app_token = "354"
-        self.expected_bot_id = "357"
 
+        self.client_id = "354"
         self.base_url = settings.BASE_URL
-        # Bitrix API settings
         self.webhook_url = settings.BITRIX_WEBHOOK_URL
-        self.webhook_data: dict = {}
-        self.dialog_id: str = ""
-        self.bot_id: str = ""
-        self.client_id: str = ""
     
     @log_timing('Bitrix process.')
     async def process_webhook(self, form_data: dict):
-        # Create fresh session for background task
-        try:
-            self.webhook_data = self._parse_webhook_data(form_data)
-            self.dialog_id = self.webhook_data["message"]["dialog_id"]
-            self.bot_id = self.webhook_data["bot_id"]
-            self.client_id = self.webhook_data["user"]["id"]
-            if not self.dialog_id or not self.bot_id or not self.client_id:
-                raise ValueError("Missing required webhook fields")
-
-            redis: Redis = await get_redis_client()
-            key: str = f'user-{self.user.id}'
-
-            if await redis.exists(key):
-                if settings.MODE != 'test':
-                    await self.send_response(
-                        self.dialog_id,
-                        "[B]Обрабатываю ваш предыдущий запрос. Пожалуйста, подождите завершения.[/B]",
-                        self.bot_id,
-                        self.client_id
-                    )
-                else:
-                    raise HTTPException(status_code=429, detail="Previous request still processing")
-            else:
-                await redis.setex(key, 60, '')
-                async with db_manager.session_scope() as db:
-                    await self._do_webhook_processing(db, form_data)
-        finally:
-            await redis.delete(key)
-
-    async def _do_webhook_processing(self, db: AsyncSession, form_data: dict) -> dict:
-        """Main webhook processing with automatic error handling via chat."""
-        
-        # 1. Validate event type
-        if not self._should_process_event(self.webhook_data):
-            return {"action": "ignored", "reason": "invalid_event_or_bot_message"}
-
-        # 2. Process message with error handling
-        try:
-            result = await self._process_user_message(
-                db=db,
-                message_text=self.webhook_data["message"]["text"],
-                dialog_id=self.dialog_id,
-                bot_id=self.bot_id,
-                client_id=self.client_id
-            )
-            return result
-            
-        except Exception as e:
-            logger.error(f"[bitrix] Error processing message: {e}")
-            if settings.MODE != 'dev':
-                await self.send_response(
-                    self.dialog_id,
-                    "Извините, произошла ошибка при обработке вашего сообщения. Попробуйте еще раз.",
-                    self.bot_id,
-                    self.client_id
-                )
-            return {"action": "error_sent_to_chat", "error": str(e)}
+        logger.info(form_data)
+        wh = self._parse_webhook(form_data)
     
+        if not self._should_process_event(wh):
+            logger.info(f"[bitrix] Event ignored: Bot {wh.bot_id}, User {wh.user_id}")
+            return {"action": "ignored"}
+
+        if not all([wh.bot_id, wh.dialog_id, wh.user_id]):
+            return {"action": "error", "reason": "missing_ids"}
+        
+        redis: Redis = await get_redis_client()
+        lock_key = f"lock:bitrix:{wh.dialog_id}:{wh.bot_id}"
+
+        if await redis.exists(lock_key):
+            if settings.MODE != "test":
+                await self.send_response(
+                    dialog_id=wh.dialog_id,
+                    message="[B]Обрабатываю ваш предыдущий запрос. Пожалуйста, подождите завершения.[/B]",
+                    bot_id=wh.bot_id
+                )
+            return {"action": "locked"}
+        try:
+            # Set lock for 60 seconds
+            await redis.setex(lock_key, 60, 'processing')
+
+            # 4. Database operations and AI Processing
+            async with db_manager.session_scope() as db:
+                storage = await self.storage_repo.get_by_bot_id(db, wh.bot_id)
+                if not storage:
+                    await self.send_response(
+                        dialog_id=wh.dialog_id,
+                        message="Необходимо связать бота с хранилищем. Обратитесь к администратору.",
+                        bot_id=wh.bot_id
+                    )
+                    return {"action": "error_sent", "reason": "bot_not_linked"}
+    
+                return await self._process_user_message(
+                    db=db,
+                    wh=wh,
+                    vector_store_id=storage.vector_store_id,
+                )
+        finally:
+            await redis.delete(lock_key)
+
     async def _process_user_message(
-        self, db: AsyncSession, message_text: str, dialog_id: str, bot_id: str, client_id: str
+        self,
+        db: AsyncSession,
+        wh: BitrixWebhook,
+        vector_store_id: str
     ) -> dict:
         """Process user message - streamlined for background execution."""
 
         # 1. Get or create chat
-        chat = await self._get_or_create_chat(db, dialog_id)
+        chat = await self._get_or_create_chat(db, wh.dialog_id)
 
         # 2. Save user message
         await self.message_repo.create(db, MessageCreate(
             chat_id=chat.id,
-            content=message_text,
+            content=wh.message_text,
             role=UserRole.USER,
         ))
 
         # 3. Get AI response
-        ai_result = await self._get_ai_response(db, message_text, chat)
+        ai_result = await self._get_ai_response(
+            db,
+            wh.message_text,
+            chat,
+            vector_store_id=vector_store_id
+        )
         
         # 4. Save assistant message
         await self.message_repo.create(db, MessageCreate(
@@ -150,7 +148,7 @@ class BitrixService:
 
         if settings.MODE != 'test':
             await self.send_response(
-                dialog_id, bitrix_message, bot_id, client_id
+                wh.dialog_id, bitrix_message, wh.bot_id
             )
 
         return {
@@ -158,20 +156,6 @@ class BitrixService:
             "ai_response": ai_result.answer,
             "chat_id": chat.id
         }
-
-    def _should_process_event(self, webhook_data: dict) -> bool:
-        """Check if we should process this webhook event."""
-        event = webhook_data.get("event", "")
-        message_text = webhook_data.get("message", {}).get("text", "")
-        user_id = webhook_data.get("user", {}).get("id", "")
-        bot_id = webhook_data.get("bot_id", "")
-        
-        # Only process message add events with text from non-bot users
-        return (
-            event == 'ONIMBOTMESSAGEADD'
-            and message_text
-            and user_id != bot_id
-        )
 
     def safe_get_form_value(self, form_data, key: str) -> str:
         """Safely extract and decode form data value."""
@@ -190,6 +174,11 @@ class BitrixService:
     
     def _parse_webhook_data(self, form_data) -> dict:
         """Extract all relevant data from Bitrix webhook."""
+        bot_id = ""
+        for key in form_data.keys():
+            if "data[BOT]" in key and "[BOT_ID]" in key:
+                bot_id = self.safe_get_form_value(form_data, key)
+                break
         
         return {
             "event": self.safe_get_form_value(form_data, 'event'),
@@ -205,7 +194,7 @@ class BitrixService:
                 "first_name": self.safe_get_form_value(form_data, 'data[USER][FIRST_NAME]'),
                 "last_name": self.safe_get_form_value(form_data, 'data[USER][LAST_NAME]'),
             },
-            "bot_id": self.safe_get_form_value(form_data, 'data[BOT][357][BOT_ID]'),
+            "bot_id": bot_id
         }
 
     async def _get_or_create_chat(self, db: AsyncSession, dialog_id: str) -> ChatOut:
@@ -213,7 +202,7 @@ class BitrixService:
 
         # Try to find existing chat for this user
         existing_chat = await self.chat_repo.get_last_created_by_user_id(
-            db, self.user.id
+            db, int(dialog_id)
         )
         if existing_chat:
             return existing_chat
@@ -232,7 +221,13 @@ class BitrixService:
 
         return chat
 
-    async def _get_ai_response(self, db: AsyncSession, message_text: str, chat: ChatOut) -> ResultPayload:
+    async def _get_ai_response(
+        self,
+        db: AsyncSession,
+        message_text: str,
+        chat: ChatOut,
+        vector_store_id: str
+    ) -> ResultPayload:
         """Get AI response with timeout handling."""
 
         try:
@@ -252,7 +247,8 @@ class BitrixService:
                     db=db,
                     conv_id=chat.session_handle,
                     user=self.user,
-                    user_input=message_text
+                    user_input=message_text,
+                    vector_store_id=vector_store_id
                 ),
                 timeout=30.0
             )
@@ -273,13 +269,13 @@ class BitrixService:
             )
     
     async def send_response(
-        self, dialog_id: str, message: str, bot_id: str, client_id: str
+        self, dialog_id: str, message: str, bot_id: str
     ) -> bool:
         """Send AI response back to Bitrix24 chat."""
         
         payload = {
             "BOT_ID": bot_id,
-            "CLIENT_ID": '354',
+            "CLIENT_ID": self.client_id,
             "DIALOG_ID": dialog_id,
             "MESSAGE": message
         }
@@ -322,3 +318,34 @@ class BitrixService:
             sources_text += "\n"
 
         return sources_text
+    
+    def _parse_webhook(self, form_data: dict) -> BitrixWebhook:
+        data = self._parse_webhook_data(form_data)
+
+        # Normalize to str + strip (kills Optional/Any early)
+        event = str(data.get("event", "")).strip()
+        bot_id = str(data.get("bot_id", "")).strip()
+
+        msg = data.get("message") or {}
+        usr = data.get("user") or {}
+
+        dialog_id = str(msg.get("dialog_id", "")).strip()
+        message_text = str(msg.get("text", "")).strip()
+        message_id = str(msg.get("id", "")).strip()
+        user_id = str(usr.get("id", "")).strip()
+
+        return BitrixWebhook(
+            event=event,
+            bot_id=bot_id,
+            dialog_id=dialog_id,
+            message_text=message_text,
+            message_id=message_id,
+            user_id=user_id,
+        )
+    
+    def _should_process_event(self, wh: BitrixWebhook) -> bool:
+        return (
+            wh.event == "ONIMBOTMESSAGEADD"
+            and bool(wh.message_text)
+            and wh.user_id != wh.bot_id
+        )

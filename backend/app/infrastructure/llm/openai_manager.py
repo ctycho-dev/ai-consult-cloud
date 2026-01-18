@@ -11,10 +11,10 @@ from openai import (
     BadRequestError, NotFoundError, ConflictError,
     InternalServerError, RateLimitError, APIError
 )
-from app.domain.user.schema import UserOut
+from app.domain.user.schema import UserOutSchema
 from app.domain.message.schema import ResultPayload, SourceInfo
-from app.domain.file.repository import FileRepository
-from app.domain.storage.repository import StorageRepository
+from app.domain.file.repository import FileRepo
+from app.domain.storage.repository import StorageRepo
 from app.core.logger import get_logger
 from app.core.decorators import log_timing
 
@@ -26,8 +26,8 @@ class OpenAIManager:
     def __init__(
         self,
         client: AsyncOpenAI,
-        file_repo: FileRepository,
-        storage_repo: StorageRepository
+        file_repo: FileRepo,
+        storage_repo: StorageRepo
     ):
         """
         Initialize OpenAIManager with OpenAI client and file repository.
@@ -82,10 +82,15 @@ class OpenAIManager:
         self,
         db: AsyncSession,
         conv_id: str,
-        user: UserOut,
-        user_input: str
+        user: UserOutSchema,
+        user_input: str,
+        vector_store_id: str | None
     ) -> ResultPayload:
-        vector_store_ids = await self.get_vector_store_ids(db, user)
+        if vector_store_id:
+            vector_store_ids = [vector_store_id]
+        else:
+            vector_store_ids = await self.get_vector_store_ids(db, user)
+        # vector_store_ids = await self.get_vector_store_ids(db, user)
         tools_arg = self._get_user_tools(vector_store_ids)
         model = user.model or "gpt-4o-mini"
 
@@ -93,9 +98,6 @@ class OpenAIManager:
         if user.source == 'bitrix':
             instructions = self._get_bitrix_instruction()
         else:
-            # parts = [getattr(user, "user_instructions", None), getattr(user, "instructions", None)]
-            # merged_instructions = "\n\n".join(p for p in parts if p).strip()
-            # instructions = merged_instructions or NOT_GIVEN
             instructions = self._get_web_instruction()
 
         resp = await self.client.responses.create(
@@ -131,14 +133,15 @@ class OpenAIManager:
         self,
         db: AsyncSession,
         conv_id: str,
-        user: UserOut,
-        user_input: str
+        user: UserOutSchema,
+        user_input: str,
+        vector_store_id: str | None = None
     ) -> ResultPayload:
         """
         Send user input and receive AI response with retry on transient errors.
 
         :param conv_id: Conversation ID
-        :param user: UserOut instance containing model and tool info
+        :param user: UserOutSchema instance containing model and tool info
         :param user_input: User message input string
         :return: ResultPayload containing answer and sources
         """
@@ -148,7 +151,7 @@ class OpenAIManager:
             #     # Optionally create new conversation here or throw exception
             #     logger.warning(f"Conversation {conv_id} inactive, consider creating a new one.")
 
-            return await self.create_response(db, conv_id, user, user_input)
+            return await self.create_response(db, conv_id, user, user_input, vector_store_id)
 
         except (InternalServerError, RateLimitError, APIError) as e:
             logger.exception("OpenAIManager send_and_receive failed with retryable error: %s", e)
@@ -274,14 +277,14 @@ class OpenAIManager:
         return vs_file
 
     async def get_vector_store_ids(
-        self, db: AsyncSession, user: UserOut
+        self, db: AsyncSession, user: UserOutSchema
     ) -> list[str]:
         """
         Get vector store IDs for user. Uses user's vector_store_ids if set,
         otherwise falls back to default storage.
 
         :param db: Database session
-        :param user: UserOut instance
+        :param user: UserOutSchema instance
         :return: List of vector store IDs
         """
         # Priority 1: User's configured vector stores
@@ -305,7 +308,7 @@ class OpenAIManager:
         """
         Build file_search tool configuration with vector store IDs.
 
-        :param user: UserOut instance
+        :param user: UserOutSchema instance
         :param vector_store_ids: List of vector store IDs to use
         :return: List of tool dicts for OpenAI API
         """

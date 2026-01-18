@@ -13,7 +13,7 @@ from app.domain.file.schema import (
 )
 
 
-class FileRepository(BaseRepository[File, FileOut, FileCreate]):
+class FileRepo(BaseRepository[File, FileOut, FileCreate]):
     """
     PostgreSQL repository implementation for managing File entities.
 
@@ -28,7 +28,7 @@ class FileRepository(BaseRepository[File, FileOut, FileCreate]):
 
     def __init__(self):
         """
-        Initializes the FileRepository by binding the File model
+        Initializes the FileRepo by binding the File model
         with its corresponding Pydantic schemas (FileOut and FileCreate).
         
         This setup allows reuse of the generic BaseRepository for standard

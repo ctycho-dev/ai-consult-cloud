@@ -1,7 +1,9 @@
 import asyncio
 import mimetypes
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.domain.file.repository import FileRepository
+from app.domain.file.repository import FileRepo
+from app.domain.storage.repository import StorageRepo
+from app.domain.storage.schema import StorageOut
 from app.domain.file.schema import FileCreate
 from app.enums.enums import FileOrigin, FileState
 from app.infrastructure.llm.openai_manager import OpenAIManager
@@ -16,20 +18,40 @@ logger = get_logger()
 class FileBucketService:
     def __init__(
         self,
-        db: AsyncSession,
-        repo: FileRepository,
+        repo: FileRepo,
         manager: OpenAIManager,
         s3_client: YandexS3Client,
         converter: FileConverter,
+        storage_repo: StorageRepo
     ):
-        self.db = db
         self.repo = repo
         self.manager = manager
         self.s3_client = s3_client
         self.converter = converter
-        self.bitrix_sync_vc = 'vs_69391c1a7fa48191b0b85507ec974753'
+        self.storage_repo = storage_repo
+        self.SUPPORTED_EXTENSIONS = (
+            # Documents
+            ".pdf", ".doc", ".docx", ".pptx",
+            # Spreadsheets
+            ".xls", ".xlsx",
+            # Text files
+            ".txt", ".md", ".html", ".json",
+        )
+        self._storage_cache: dict[str, StorageOut] = {}
 
-    async def process_yandex_messages(self, payload: dict) -> None:
+    async def _get_storage_with_cache(
+        self, db: AsyncSession, bucket_name: str
+    ) -> StorageOut | None:
+        """Fetch storage config from cache or DB."""
+        if bucket_name in self._storage_cache:
+            return self._storage_cache[bucket_name]
+        
+        storage = await self.storage_repo.get_by_bucket_name(db, bucket_name)
+        if storage:
+            self._storage_cache[bucket_name] = storage
+        return storage
+
+    async def process_yandex_messages(self, db: AsyncSession, payload: dict) -> None:
         messages = payload.get("messages", [])
 
         for msg in messages:
@@ -38,22 +60,28 @@ class FileBucketService:
             bucket_id = msg["details"]["bucket_id"]
             object_id = msg["details"]["object_id"]
 
-            # we only care about pdf/xls/xlsx etc
-            if not object_id.lower().endswith((".pdf", ".xls", ".xlsx", ".doc", ".docx")):
+            if not object_id.lower().endswith(self.SUPPORTED_EXTENSIONS):
+                continue
+
+            storage = await self._get_storage_with_cache(db, bucket_id)
+            if not storage:
+                logger.error(f"No storage found for bucket {bucket_id}")
                 continue
 
             if "ObjectCreate" in event_type:
-                await self._handle_create(bucket_id, object_id)
+                await self._handle_create(db, storage, bucket_id, object_id)
             elif "ObjectDelete" in event_type:
-                await self._handle_delete(object_id)
+                await self._handle_delete(db, object_id)
 
-    async def _handle_create(self, bucket: str, s3_key: str) -> None:
-        existing = await self.repo.get_by_s3_object_key(self.db, s3_key)
+    async def _handle_create(
+        self, db: AsyncSession, storage: StorageOut, bucket: str, s3_key: str
+    ) -> None:
+        existing = await self.repo.get_by_s3_object_key(db, s3_key)
         if existing:
             if existing.status == FileState.DELETING:
                 existing.status = FileState.STORED
                 existing.origin = FileOrigin.S3_IMPORT
-                await self.repo.update(self.db, existing.id, existing)
+                await self.repo.update(db, existing.id, existing)
             return
         
         s3_metadata = await asyncio.to_thread(
@@ -70,16 +98,16 @@ class FileBucketService:
             name=s3_key.split("/")[-1],
             size=file_size,
             content_type=content_type,
-            vector_store_id=self.bitrix_sync_vc,
+            vector_store_id=storage.vector_store_id,
             origin=FileOrigin.S3_IMPORT,
             status=FileState.STORED,
         )
-        await self.repo.create(self.db, file)
+        await self.repo.create(db, file)
 
-    async def _handle_delete(self, s3_key: str) -> None:
-        existing = await self.repo.get_by_s3_object_key(self.db, s3_key)
+    async def _handle_delete(self, db: AsyncSession, s3_key: str) -> None:
+        existing = await self.repo.get_by_s3_object_key(db, s3_key)
         logger.info(f'_handle_delete: {existing}')
         if not existing:
             return
         existing.status = FileState.DELETING
-        await self.repo.update(self.db, existing.id, existing)
+        await self.repo.update(db, existing.id, existing)

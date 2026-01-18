@@ -15,9 +15,9 @@ x-healthcheck-redis-template: &redishealthcheck
     retries: 3
 
 services:
-  postgres:
+  postgres-dev:
     image: postgres:17
-    container_name: assistant-db
+    container_name: postgres-dev
     ports:
       - "5432:5432"
     volumes:
@@ -31,6 +31,19 @@ services:
     restart: always
     <<: *postgreshealthcheck
 
+  postgres-test:
+    image: postgres:17
+    container_name: postgres-test
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      POSTGRES_DB: test_analyser_db
+    networks:
+      - assistant-cloud-network
+    <<: *postgreshealthcheck
+
   redis:
     image: redis:alpine3.20
     container_name: redis-server
@@ -41,8 +54,6 @@ services:
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-    # env_file:
-    #   - .env.dev
     networks:
       - assistant-cloud-network
     command: ["sh", "-c", "redis-server --bind 0.0.0.0 --requirepass secret"]

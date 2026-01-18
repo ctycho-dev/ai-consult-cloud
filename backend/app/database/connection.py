@@ -68,12 +68,16 @@ class DatabaseManager:
         session = self.async_session()
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise
         finally:
             await session.close()
+
+    def get_session_factory(self) -> sessionmaker:
+        if not self.async_session:
+            raise RuntimeError("Session factory not initialized")
+        return self.async_session
 
     async def close(self):
         """
