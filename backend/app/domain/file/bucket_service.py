@@ -53,6 +53,7 @@ class FileBucketService:
 
     async def process_yandex_messages(self, db: AsyncSession, payload: dict) -> None:
         messages = payload.get("messages", [])
+        logger.info(messages)
 
         for msg in messages:
             logger.info(f'Message: {msg}')
