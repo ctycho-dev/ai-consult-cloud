@@ -11,7 +11,7 @@ from app.enums.enums import (
     FileState,
     DeleteStatus
 )
-
+from app.common.schema import CamelModel
 
 class FileCreate(BaseModel):
     """
@@ -32,7 +32,7 @@ class FileCreate(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
-class FileOut(BaseModel):
+class FileOut(CamelModel):
     """
     Schema for returning file information from storage.
     Includes canonical S3 fields, OpenAI fields, and orchestration state.
@@ -89,3 +89,10 @@ class FileOut(BaseModel):
         populate_by_name=True,
         alias_generator=to_camel
     )
+
+
+class FilesPage(CamelModel):
+    items: list[FileOut]
+    total: int
+    limit: int
+    offset: int

@@ -28,8 +28,6 @@ export const fileApi = createApi({
 				const { files } = rest
 				const formData = new FormData();
 				formData.append('files', files)
-				// files.map((file) => formData.append('files', file));
-				// formData.append('company_id', company_id)
 
 				return {
 					url: `/upload`,
@@ -39,8 +37,7 @@ export const fileApi = createApi({
 			},
 			invalidatesTags: ['File']
 		}),
-		// Updated API with proper blob handling
-		downloadFile: builder.mutation<void, number>({ // Return void instead of Blob
+		downloadFile: builder.mutation<void, number>({
 			query: (fileId: number) => ({
 				url: `/${fileId}/download`,
 				method: 'GET',

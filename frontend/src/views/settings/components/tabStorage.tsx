@@ -85,28 +85,6 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
         setIsCreating(false);
     };
 
-    // Handle set as default
-    const handleSetAsDefault = async (storageId: string) => {
-        setLoadingStates(prev => ({ ...prev, [storageId]: true }));
-        try {
-            const res = await updateStorage({
-                id: storageId,
-                data: { default: true }
-            });
-
-            if (res && 'data' in res) {
-                toast.success('Хранилище установлено по умолчанию');
-                refetch();
-            } else if ('error' in res) {
-                const errorData = res.error as any;
-                toast.error(errorData?.data?.detail || 'Ошибка при установке по умолчанию');
-            }
-        } catch (err) {
-            toast.error('Ошибка при установке по умолчанию');
-        }
-        setLoadingStates(prev => ({ ...prev, [storageId]: false }));
-    };
-
     const handleConfirmDelete = async () => {
         if (!selectedStorageId) return;
         setIsDeleting(true);
@@ -180,11 +158,6 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                                 <td className="p-4 align-middle">
                                     <div className="flex gap-2">
                                         {item.name}
-                                        {item.default && (
-                                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                                По умолчанию
-                                            </span>
-                                        )}
                                     </div>
                                 </td>
                                 <td className="p-4 align-middle">{item.botName}</td>
@@ -208,15 +181,6 @@ export const TabStorge: React.FC<TabStorageProps> = () => {
                                             >
                                                 Выбрать
                                             </Menu.Item> */}
-                                            {/* {!item.default && (
-                                                <Menu.Item
-                                                    leftSection={<IconStar size={14} />}
-                                                    onClick={() => handleSetAsDefault(item.id)}
-                                                    disabled={loadingStates[item.id]}
-                                                >
-                                                    {loadingStates[item.id] ? 'Установка...' : 'Установить по умолчанию'}
-                                                </Menu.Item>
-                                            )} */}
                                             {user?.role == Role.ADMIN &&
                                                 <Menu.Item
                                                     color="red"

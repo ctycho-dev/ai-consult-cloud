@@ -2,7 +2,7 @@
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import delete, func
+from sqlalchemy import delete, func, or_
 
 from app.exceptions.exceptions import DatabaseError
 from app.common.base_repository import BaseRepository
@@ -11,6 +11,7 @@ from app.domain.file.schema import (
     FileCreate,
     FileOut
 )
+from app.enums.enums import FileState
 
 
 class FileRepo(BaseRepository[File, FileOut, FileCreate]):
@@ -19,6 +20,46 @@ class FileRepo(BaseRepository[File, FileOut, FileCreate]):
     def __init__(self):
         """Bind File model to schemas."""
         super().__init__(File, FileOut, FileCreate)
+
+    async def get_page(
+        self,
+        db: AsyncSession,
+        limit: int,
+        offset: int,
+        q: str | None = None,
+        status: FileState | None = None,
+        bucket: str | None = None,
+        vector_store_id: str | None = None,
+    ) -> tuple[list[FileOut], int]:
+        try:
+            stmt = select(File)
+
+            if vector_store_id:
+                stmt = stmt.where(File.vector_store_id == vector_store_id)
+            if bucket:
+                stmt = stmt.where(File.s3_bucket == bucket)
+            if status:
+                stmt = stmt.where(File.status == status)
+            if q:
+                like = f"%{q.strip()}%"
+                stmt = stmt.where(or_(
+                    File.name.ilike(like),
+                    File.s3_object_key.ilike(like),
+                ))
+
+            # total
+            count_stmt = select(func.count()).select_from(stmt.subquery())
+            total = (await db.execute(count_stmt)).scalar_one()
+
+            # page
+            stmt = stmt.order_by(File.created_at.desc()).limit(limit).offset(offset)
+            res = await db.execute(stmt)
+            rows = res.scalars().all()
+            items = [FileOut.model_validate(x) for x in rows]
+            return items, int(total)
+
+        except Exception as e:
+            raise DatabaseError(f"Failed to fetch files page: {e}") from e
 
     async def get_by_storage_key(
         self,

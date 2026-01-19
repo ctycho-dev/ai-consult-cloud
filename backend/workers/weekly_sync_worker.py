@@ -278,4 +278,4 @@ async def send_event_batch(
 
 
 if __name__ == "__main__":
-    asyncio.run(weekly_sync('bitrix-sync'))
+    asyncio.run(weekly_sync('package'))

@@ -1,15 +1,16 @@
 from fastapi import (
     APIRouter, Depends, HTTPException,
     UploadFile, File, Response, Request, status,
-    Header
+    Header, Query
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.middleware.rate_limiter import limiter
-from app.domain.file.schema import FileOut
+from app.domain.file.schema import FileOut, FilesPage
 from app.domain.file.service import FileService
 from app.domain.file.service_public import PublicFileService
 from app.domain.file.bucket_service import FileBucketService
 from app.utils.oauth2 import validate_file_access_token
+from app.enums.enums import FileState
 from app.api.dependencies.services import (
     get_file_service,
     get_file_public_service,
@@ -66,15 +67,28 @@ async def secure_file_download(
     return await service.download_file(db, file_id)
 
 
-@router.get("/", response_model=list[FileOut])
+@router.get("/page", response_model=FilesPage)
 @limiter.limit("60/minute")
-async def get_all_files(
+async def get_files_page(
     request: Request,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    q: str | None = Query(None, min_length=1),
+    status: FileState | None = Query(None),
+    bucket: str | None = Query(None),
+    vector_store_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
-    service: FileService = Depends(get_file_service)
+    service: FileService = Depends(get_file_service),
 ):
-    return await service.get_all(db)
-
+    return await service.get_page(
+        db=db,
+        limit=limit,
+        offset=offset,
+        q=q,
+        status=status,
+        bucket=bucket,
+        vector_store_id=vector_store_id,
+    )
 
 
 @router.get("/{file_id}", response_model=FileOut)

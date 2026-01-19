@@ -52,6 +52,27 @@ class FileService:
 
     async def get_by_id(self, db: AsyncSession, file_id: int) -> FileOut | None:
         return await self.repo.get_by_id(db, file_id)
+    
+    async def get_page(
+        self,
+        db: AsyncSession,
+        limit: int,
+        offset: int,
+        q: str | None = None,
+        status: FileState | None = None,
+        bucket: str | None = None,
+        vector_store_id: str | None = None,
+    ):
+        items, total = await self.repo.get_page(
+            db=db,
+            limit=limit,
+            offset=offset,
+            q=q,
+            status=status,
+            bucket=bucket,
+            vector_store_id=vector_store_id,
+        )
+        return {"items": items, "total": total, "limit": limit, "offset": offset}
 
     async def delete_by_id(self, db: AsyncSession, file_id: int) -> FileOut | None:
         if self.user.role == UserRole.USER:

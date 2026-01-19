@@ -2,9 +2,122 @@ import pytest
 from httpx import AsyncClient
 
 
+async def _create_n_files(
+    client: AsyncClient,
+    upload_files_payload_factory,
+    unique_file_bytes_factory,
+    n: int = 8,
+    prefix: str = "page",
+):
+    created_ids = []
+    for i in range(n):
+        r = await client.post(
+            "/api/v1/file/upload",
+            files=upload_files_payload_factory(
+                filename=f"{prefix}_{i}.txt",
+                content=unique_file_bytes_factory(f"{prefix}_{i}"),
+            ),
+        )
+        assert r.status_code == 201, r.text
+        created_ids.append(r.json()["id"])
+    return created_ids
+
+
 @pytest.mark.asyncio
 class TestFileAPI:
     """E2E tests for File API (OpenAI/S3/converter mocked)."""
+    async def test_files_page_limit_offset(
+        self,
+        client: AsyncClient,
+        upload_files_payload_factory,
+        unique_file_bytes_factory,
+    ):
+        # Create 8 files
+        await _create_n_files(
+            client,
+            upload_files_payload_factory,
+            unique_file_bytes_factory,
+            n=6,
+            prefix="limit_offset",
+        )
+
+        # Page 1
+        r1 = await client.get("/api/v1/file/page?limit=3&offset=0")
+        assert r1.status_code == 200, r1.text
+        data1 = r1.json()
+
+        assert set(data1.keys()) >= {"items", "total", "limit", "offset"}
+        assert data1["limit"] == 3
+        assert data1["offset"] == 0
+        assert isinstance(data1["items"], list)
+        assert 0 <= len(data1["items"]) <= 3
+        assert isinstance(data1["total"], int)
+        assert data1["total"] >= len(data1["items"])
+
+        # Page 2
+        r2 = await client.get("/api/v1/file/page?limit=3&offset=3")
+        assert r2.status_code == 200, r2.text
+        data2 = r2.json()
+
+        assert data2["limit"] == 3
+        assert data2["offset"] == 3
+        assert isinstance(data2["items"], list)
+        assert 0 <= len(data2["items"]) <= 3
+
+        # Non-overlap by id (when both pages have items)
+        ids1 = {it["id"] for it in data1["items"] if "id" in it}
+        ids2 = {it["id"] for it in data2["items"] if "id" in it}
+        assert ids1.isdisjoint(ids2)
+
+    async def test_files_page_filter_by_vector_store(
+        self,
+        client: AsyncClient,
+        upload_files_payload_factory,
+        unique_file_bytes_factory,
+        default_vector_store_id,
+    ):
+        # Create some files
+        await _create_n_files(
+            client,
+            upload_files_payload_factory,
+            unique_file_bytes_factory,
+            n=3,
+            prefix="vs_filter",
+        )
+
+        # Filter by vectorStoreId
+        r = await client.get(
+            f"/api/v1/file/page?limit=50&offset=0&vectorStoreId={default_vector_store_id}"
+        )
+        assert r.status_code == 200, r.text
+        data = r.json()
+
+        assert isinstance(data.get("items"), list)
+        for it in data["items"]:
+            assert it["vectorStoreId"] == default_vector_store_id
+
+    async def test_files_page_filter_by_status(
+        self,
+        client: AsyncClient,
+        upload_files_payload_factory,
+        unique_file_bytes_factory,
+    ):
+        await _create_n_files(
+            client,
+            upload_files_payload_factory,
+            unique_file_bytes_factory,
+            n=3,
+            prefix="status_filter",
+        )
+
+        r = await client.get("/api/v1/file/page?limit=50&offset=0&status=indexing")
+        assert r.status_code == 200, r.text
+        data = r.json()
+
+        assert isinstance(data.get("items"), list)
+        for it in data["items"]:
+            assert str(it["status"]).lower() == "indexing"
+
 
     async def test_upload_file_success(self, client: AsyncClient, upload_files_payload_factory, default_vector_store_id):
         files = upload_files_payload_factory()
@@ -27,11 +140,6 @@ class TestFileAPI:
         files2 = upload_files_payload_factory(filename="dup2.txt", content=b"same content")
         r2 = await client.post("/api/v1/file/upload", files=files2)
         assert r2.status_code == 409
-
-    async def test_get_all_files(self, client: AsyncClient):
-        response = await client.get("/api/v1/file/")
-        assert response.status_code == 200
-        assert isinstance(response.json(), list)
 
     async def test_get_file_by_id(self, client, upload_files_payload_factory, unique_file_bytes_factory):
         create = await client.post(
@@ -76,14 +184,6 @@ class TestFileAPI:
         r_get = await client.get(f"/api/v1/file/{file_id}")
         assert r_get.status_code == 404
 
-    import pytest
-from httpx import AsyncClient
-
-
-pytestmark = pytest.mark.asyncio
-
-
-class TestFileStatsAPI:
     async def test_get_file_stats_smoke(self, client: AsyncClient, default_vector_store_id):
         """
         Smoke test: stats endpoint responds and returns expected shape.
