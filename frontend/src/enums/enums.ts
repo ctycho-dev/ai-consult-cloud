@@ -1,25 +1,23 @@
 export enum Role {
-    ADMIN = 'admin',
-    USER = 'user',
-    ASSISTANT = 'assistant'
+  ADMIN = "admin",
+  USER = "user",
+  ASSISTANT = "assistant",
 }
 
 export enum MessageStates {
-    CREATED = 'created',
-    PROCESSING = 'processing',
-    FINISHED = 'finished',
-    TIMEOUT = 'timeout',
-    CANCELED = 'canceled',
-    ERROR = 'error'
+  CREATED = "created",
+  PROCESSING = "processing",
+  FINISHED = "finished",
+  TIMEOUT = "timeout",
+  CANCELED = "canceled",
+  ERROR = "error",
 }
-
 
 export enum UploadStatus {
-    PROCESSING = 'processing',
-    SUCCESS = 'success',
-    ERROR = 'error'
+  PROCESSING = "processing",
+  SUCCESS = "success",
+  ERROR = "error",
 }
-
 
 // enums/enums.ts
 
@@ -49,7 +47,9 @@ export enum FileState {
   STORED = "stored",
   INDEXING = "indexing",
   INDEXED = "indexed",
-  FAILED = "failed",
+  DELETING = "deleting",
+  UPLOAD_FAILED = "upload_failed",
+  DELETE_FAILED = "delete_failed",
 }
 
 /**

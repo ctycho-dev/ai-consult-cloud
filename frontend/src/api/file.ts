@@ -1,123 +1,151 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { IGlobalFileRequest, IFile, IFileStats } from "@/interfaces/file";
+import {
+  IGlobalFileRequest,
+  IFile,
+  IFileStats,
+  IFilesPage,
+  IFilePageParams,
+} from "@/interfaces/file";
 
 export const fileApi = createApi({
-	reducerPath: 'fileApi',
-	baseQuery: fetchBaseQuery({
-		baseUrl: `/api/v1/file`,
-		// credentials: "include"
-	}),
-	tagTypes: ['File'],
-	endpoints: (builder) => ({
-		getFiles: builder.query<IFile[], void>({
-			query: () => ({
-				url: '/',
-				method: 'GET'
-			}),
-			providesTags: ['File']
-		}),
+  reducerPath: "fileApi",
+  baseQuery: fetchBaseQuery({
+    baseUrl: `/api/v1/file`,
+    // credentials: "include"
+  }),
+  tagTypes: ["File"],
+  endpoints: (builder) => ({
+    getFiles: builder.query<IFile[], void>({
+      query: () => ({
+        url: "/",
+        method: "GET",
+      }),
+      providesTags: ["File"],
+    }),
 
-		getFile: builder.query<IFile, number>({
-			query: (fileId: number) => `/${fileId}`,
-		}),
-		getStats: builder.query<IFileStats, string>({
-			query: (vc_id: string) => `/stats/${vc_id}`,
-		}),
-		uploadFile: builder.mutation<IFile, IGlobalFileRequest>({
-			query({ ...rest }) {
-				const { files } = rest
-				const formData = new FormData();
-				formData.append('files', files)
+    getFile: builder.query<IFile, number>({
+      query: (fileId: number) => `/${fileId}`,
+    }),
+    getFilePage: builder.query<IFilesPage, IFilePageParams>({
+      query: (params) => ({
+        url: "/page",
+        method: "GET",
+        params: {
+          limit: params.limit ?? 20,
+          offset: params.offset ?? 0,
+          ...(params.q && { q: params.q }),
+          ...(params.status && { status: params.status }),
+          ...(params.bucket && { bucket: params.bucket }),
+          ...(params.vectorStoreId && {
+            vector_store_id: params.vectorStoreId,
+          }),
+        },
+      }),
+      providesTags: ["File"],
+    }),
+    getStats: builder.query<IFileStats, string>({
+      query: (vc_id: string) => `/stats/${vc_id}`,
+    }),
+    uploadFile: builder.mutation<IFile, IGlobalFileRequest>({
+      query({ ...rest }) {
+        const { files } = rest;
+        const formData = new FormData();
+        formData.append("files", files);
 
-				return {
-					url: `/upload`,
-					method: 'POST',
-					body: formData
-				}
-			},
-			invalidatesTags: ['File']
-		}),
-		downloadFile: builder.mutation<void, number>({
-			query: (fileId: number) => ({
-				url: `/${fileId}/download`,
-				method: 'GET',
-				responseHandler: async (response) => {
-					if (!response.ok) {
-						throw new Error(`Download failed: ${response.statusText}`);
-					}
-					return response.blob();
-				},
-			}),
-			transformResponse: async (blob: Blob, meta, fileId) => {
-				let filename = `file_${fileId}`;
+        return {
+          url: `/upload`,
+          method: "POST",
+          body: formData,
+        };
+      },
+      invalidatesTags: ["File"],
+    }),
+    downloadFile: builder.mutation<void, number>({
+      query: (fileId: number) => ({
+        url: `/${fileId}/download`,
+        method: "GET",
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            throw new Error(`Download failed: ${response.statusText}`);
+          }
+          return response.blob();
+        },
+      }),
+      transformResponse: async (blob: Blob, meta, fileId) => {
+        let filename = `file_${fileId}`;
 
-				// Try different ways to access headers based on RTK Query version
-				let contentDisposition = null;
+        // Try different ways to access headers based on RTK Query version
+        let contentDisposition = null;
 
-				if (meta?.baseQueryMeta?.response?.headers) {
-					contentDisposition = meta.baseQueryMeta.response.headers.get('Content-Disposition');
-				} else if (meta?.response?.headers) {
-					contentDisposition = meta.response.headers.get('Content-Disposition');
-				}
+        if (meta?.baseQueryMeta?.response?.headers) {
+          contentDisposition = meta.baseQueryMeta.response.headers.get(
+            "Content-Disposition",
+          );
+        } else if (meta?.response?.headers) {
+          contentDisposition = meta.response.headers.get("Content-Disposition");
+        }
 
-				console.log('Content-Disposition header:', contentDisposition); // Debug
+        console.log("Content-Disposition header:", contentDisposition); // Debug
 
-				if (contentDisposition) {
-					// Parse the header that matches your backend format
-					// Format: attachment; filename="ascii_name"; filename*=UTF-8''encoded_name
+        if (contentDisposition) {
+          // Parse the header that matches your backend format
+          // Format: attachment; filename="ascii_name"; filename*=UTF-8''encoded_name
 
-					// Try RFC 5987 encoded filename first (better Unicode support)
-					const encodedMatch = contentDisposition.match(/filename\*=UTF-8''([^;\s]+)/);
-					if (encodedMatch) {
-						try {
-							filename = decodeURIComponent(encodedMatch[1]);
-							console.log('Using RFC 5987 filename:', filename);
-						} catch (e) {
-							console.warn('Failed to decode RFC 5987 filename:', e);
-						}
-					} else {
-						// Fallback to regular quoted filename
-						const quotedMatch = contentDisposition.match(/filename="([^"]+)"/);
-						if (quotedMatch) {
-							filename = quotedMatch[1];
-							console.log('Using quoted filename:', filename);
-						}
-					}
-				}
+          // Try RFC 5987 encoded filename first (better Unicode support)
+          const encodedMatch = contentDisposition.match(
+            /filename\*=UTF-8''([^;\s]+)/,
+          );
+          if (encodedMatch) {
+            try {
+              filename = decodeURIComponent(encodedMatch[1]);
+              console.log("Using RFC 5987 filename:", filename);
+            } catch (e) {
+              console.warn("Failed to decode RFC 5987 filename:", e);
+            }
+          } else {
+            // Fallback to regular quoted filename
+            const quotedMatch = contentDisposition.match(/filename="([^"]+)"/);
+            if (quotedMatch) {
+              filename = quotedMatch[1];
+              console.log("Using quoted filename:", filename);
+            }
+          }
+        }
 
-				const url = window.URL.createObjectURL(blob);
-				const link = document.createElement('a');
-				link.href = url;
-				link.download = filename;
-				document.body.appendChild(link);
-				link.click();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
 
-				// Cleanup
-				document.body.removeChild(link);
-				window.URL.revokeObjectURL(url);
+        // Cleanup
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
 
-				return undefined;
-			},
-			// Don't cache file downloads
-			transformErrorResponse: (response) => response.data,
-		}),
+        return undefined;
+      },
+      // Don't cache file downloads
+      transformErrorResponse: (response) => response.data,
+    }),
 
-
-		deleteFile: builder.mutation<void | IFile, number>({
-			query: (fileId) => ({
-				url: `/${fileId}`,
-				method: "DELETE",
-			}),
-			invalidatesTags: ['File']
-		}),
-	})
+    deleteFile: builder.mutation<void | IFile, number>({
+      query: (fileId) => ({
+        url: `/${fileId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["File"],
+    }),
+  }),
 });
 
 export const {
-	useGetFilesQuery,
-	useGetFileQuery,
-	useGetStatsQuery,
-	useDownloadFileMutation,
-	useUploadFileMutation,
-	useDeleteFileMutation
+  useGetFilesQuery,
+  useGetFileQuery,
+  useGetFilePageQuery,
+  useLazyGetFilePageQuery,
+  useGetStatsQuery,
+  useDownloadFileMutation,
+  useUploadFileMutation,
+  useDeleteFileMutation,
 } = fileApi;
