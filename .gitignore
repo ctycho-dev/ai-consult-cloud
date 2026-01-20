@@ -72,3 +72,5 @@ migration_data/
 
 # Alembic
 alembic/versions/*.pyc
+
+backend/scripts/seed_files_test.py

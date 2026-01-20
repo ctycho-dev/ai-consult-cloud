@@ -283,7 +283,7 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <Group justify="center" mt="md">
+        <Group justify="center" mt="md" mb="sm">
           <Pagination
             value={page}
             onChange={setPage}
