@@ -16,14 +16,14 @@ def setup_logging() -> None:
         - development: root/app at DEBUG
         - production (or anything else): root/app at INFO
     """
-    if settings.MODE == AppMode.DEV:
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S',
-            handlers=[logging.StreamHandler(sys.stdout)]
-        )
-    else:
+    # if settings.MODE == AppMode.DEV:
+    #     logging.basicConfig(
+    #         level=logging.INFO,
+    #         format='%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s',
+    #         datefmt='%Y-%m-%d %H:%M:%S',
+    #         handlers=[logging.StreamHandler(sys.stdout)]
+    #     )
+    if settings.MODE != AppMode.DEV:
         with open(Path("logger_config.yaml"), "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
@@ -33,15 +33,15 @@ def setup_logging() -> None:
 
         logging.config.dictConfig(config)
 
-    logging.getLogger("uvicorn.access").disabled = True
-    logging.getLogger("uvicorn.access").propagate = False
-    
-    logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+        logging.getLogger("uvicorn.access").disabled = True
+        logging.getLogger("uvicorn.access").propagate = False
+        
+        logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
 
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("openai").setLevel(logging.INFO)
-    logging.getLogger("openai._base_client").setLevel(logging.INFO)
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger("httpcore").setLevel(logging.WARNING)
+        logging.getLogger("openai").setLevel(logging.INFO)
+        logging.getLogger("openai._base_client").setLevel(logging.INFO)
 
 
 def get_logger(name: str | None = None) -> logging.Logger:

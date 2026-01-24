@@ -16,7 +16,7 @@ class TestStorageAPI:
         data = response.json()
 
         assert data["name"] == storage_payload["name"]
-        assert "vector_store_id" in data
+        assert "vectorStoreId" in data
 
     async def test_get_all_storages(self, client: AsyncClient, created_storage):
         """Test retrieving all storages."""
@@ -68,7 +68,7 @@ class TestStorageAPI:
             file = File(
                 name="test.pdf",
                 s3_object_key="test/test.pdf",
-                vector_store_id=created_storage["vector_store_id"],
+                vector_store_id=created_storage["vectorStoreId"],
                 status=FileState.INDEXED,
             )
             session.add(file)

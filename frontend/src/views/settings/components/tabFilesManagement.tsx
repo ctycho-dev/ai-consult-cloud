@@ -14,11 +14,12 @@ import {
   Stack,
   Text,
   Loader,
+  Tooltip
 } from "@mantine/core";
 import { IconSearch, IconFilter } from "@tabler/icons-react";
 import { format } from "date-fns";
 
-interface TabFilesManagementProps {}
+interface TabFilesManagementProps { }
 
 const FILE_STATUS_COLORS: Record<FileState, string> = {
   [FileState.PENDING]: "gray",
@@ -71,7 +72,7 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setPage(1); // Reset to first page on search
+      setPage(1);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -156,18 +157,26 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
     <Table.Tr key={file.id}>
       <Table.Td>{file.id}</Table.Td>
       <Table.Td>
-        <Text
-          size="sm"
-          style={{
-            maxWidth: 300,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
+        <Tooltip
+          label={file.s3ObjectKey || "No s3ObjectKey"}
+          withArrow
+          position="top-start"
+          disabled={!file.s3ObjectKey}
         >
-          {file.name || "N/A"}
-        </Text>
+          <Text
+            size="sm"
+            style={{
+              maxWidth: 300,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {file.name || "N/A"}
+          </Text>
+        </Tooltip>
       </Table.Td>
+
       <Table.Td>
         <Badge color={FILE_STATUS_COLORS[file.status]} variant="light">
           {file.status}

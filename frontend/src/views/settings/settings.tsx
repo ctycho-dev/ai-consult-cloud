@@ -110,7 +110,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({}) => {
             return (
               <button
                 key={item.value}
-                className={`flex-1 flex items-center justify-center gap-1.5 rounded-md py-1.5 px-3 font-semibold ${activeTab == item.value ? "bg-background shadow-sm text-black" : null}`}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-md py-1.5 px-3 font-semibold ${activeTab == item.value ? "bg-background shadow-sm text-black" : null} hover:cursor-pointer`}
                 onClick={() => handleTabChange(item.value)}
               >
                 {item.icon && item.icon}
