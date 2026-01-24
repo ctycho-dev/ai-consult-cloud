@@ -46,9 +46,8 @@ export interface IFile {
 export interface FileUpload {
   id: string;
   file: File;
-  status: 'processing' | 'success' | 'error';
+  status: "processing" | "success" | "error";
 }
-
 
 /**
  * Request payload for uploading files
@@ -72,4 +71,20 @@ export interface IFileStats {
   delete_failed: number;
   deleting: number;
   total: number;
+}
+
+export interface IFilesPage {
+  items: IFile[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface IFilePageParams {
+  limit?: number;
+  offset?: number;
+  q?: string;
+  status?: FileState;
+  bucket?: string;
+  vectorStoreId?: string;
 }
