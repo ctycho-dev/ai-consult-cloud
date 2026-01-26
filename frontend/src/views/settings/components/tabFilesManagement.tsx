@@ -186,9 +186,16 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
       </Table.Td>
 
       <Table.Td>
-        <Badge color={FILE_STATUS_COLORS[file.status]} variant="light">
-          {file.status}
-        </Badge>
+        <Tooltip
+          label={file.lastError || "No error details"}
+          withArrow
+          position="top"
+          disabled={!file.lastError}
+        >
+          <Badge color={FILE_STATUS_COLORS[file.status]} variant="light">
+            {file.status}
+          </Badge>
+        </Tooltip>
       </Table.Td>
       <Table.Td>
         {storages.find((s: IStorage) => s.vectorStoreId === file.vectorStoreId)
