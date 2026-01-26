@@ -9,7 +9,7 @@ import { TiCloudStorage } from "react-icons/ti";
 import { Role } from "@/enums/enums";
 import { FiUsers } from "react-icons/fi";
 import { LuFiles } from "react-icons/lu";
-import { useSearchParams } from "react-router-dom";
+import { useQueryState } from "nuqs";
 
 interface SettingsViewProps {}
 
@@ -47,24 +47,12 @@ const allTabs: TabItem[] = [
 
 const SettingsView: React.FC<SettingsViewProps> = ({}) => {
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState("storage");
+  const [tab, setTab] = useQueryState("tab", { defaultValue: "storage" });
+
   const [activeTabContent, setActiveTabContent] = useState<React.ReactNode>(
     <GloblaFile />,
   );
-  // const [activeTabContent, setActiveTabContent] = useState<React.ReactNode>(<General />);
   const [filteredTabs, setFilteredTabs] = useState<TabItem[]>([]);
-
-  useEffect(() => {
-    // Get initial tab from URL params if it exists
-    const tabParam = searchParams.get("tab");
-    const initialTab =
-      tabParam && allTabs.some((tab) => tab.value === tabParam)
-        ? tabParam
-        : "storage";
-
-    setActiveTab(initialTab);
-  }, []);
 
   useEffect(() => {
     // Filter tabs based on user role
@@ -74,30 +62,18 @@ const SettingsView: React.FC<SettingsViewProps> = ({}) => {
     setFilteredTabs(tabs);
 
     // Ensure the active tab is valid for the user's role
-    const isValidTab = tabs.some((tab) => tab.value === activeTab);
+    const isValidTab = tabs.some((t) => t.value === tab);
     if (!isValidTab && tabs.length > 0) {
-      const newActiveTab = tabs[0].value;
-      setActiveTab(newActiveTab);
-      setActiveTabContent(tabs[0].menu);
-      // Update URL param when tab is reset due to role change
-      setSearchParams({ tab: newActiveTab });
+      setTab(tabs[0].value);
     }
-  }, [user?.role, activeTab]);
+  }, [user?.role, tab, setTab]);
 
   useEffect(() => {
-    const newContent = filteredTabs.find(
-      (tab) => tab.value === activeTab,
-    )?.menu;
+    const newContent = filteredTabs.find((t) => t.value === tab)?.menu;
     if (newContent) {
       setActiveTabContent(newContent);
     }
-  }, [activeTab, filteredTabs]);
-
-  const handleTabChange = (tabValue: string) => {
-    setActiveTab(tabValue);
-    // Update URL search param when tab changes
-    setSearchParams({ tab: tabValue });
-  };
+  }, [tab, filteredTabs]);
 
   return (
     <main className="">
@@ -110,8 +86,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({}) => {
             return (
               <button
                 key={item.value}
-                className={`flex-1 flex items-center justify-center gap-1.5 rounded-md py-1.5 px-3 font-semibold ${activeTab == item.value ? "bg-background shadow-sm text-black" : null} hover:cursor-pointer`}
-                onClick={() => handleTabChange(item.value)}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-md py-1.5 px-3 font-semibold ${tab == item.value ? "bg-background shadow-sm text-black" : null} hover:cursor-pointer`}
+                onClick={() => setTab(item.value)}
               >
                 {item.icon && item.icon}
                 {item.label}
