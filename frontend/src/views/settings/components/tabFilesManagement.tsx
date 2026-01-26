@@ -110,6 +110,10 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
     });
   }, [filesData?.items, filters.time]);
 
+  // Calculate actual displayed total and check if time filter is active
+  const displayedTotal = filteredFiles.length;
+  const isTimeFilterActive = filters.time !== "all";
+
   // Fetch files when filters change
   useEffect(() => {
     const offset = (filters.page - 1) * ITEMS_PER_PAGE;
@@ -139,8 +143,15 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
     })),
   ];
 
-  // Calculate total pages based on total results from API
-  const totalPages = Math.ceil((filesData?.total || 0) / ITEMS_PER_PAGE);
+  // Calculate total pages based on filtered results
+  // When time filter is active, use displayed total; otherwise use API total
+  const totalItems = isTimeFilterActive
+    ? displayedTotal
+    : (filesData?.total ?? 0);
+  const totalPages = Math.max(
+    totalItems > 0 ? Math.ceil(totalItems / ITEMS_PER_PAGE) : 0,
+    filteredFiles.length > 0 ? 1 : 0,
+  );
 
   // Format file size
   const formatFileSize = (bytes: number | null): string => {
@@ -259,7 +270,7 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
             <span>Загрузка...</span>
           </Group>
         ) : (
-          `Найдено файлов: ${filesData?.total || 0}`
+          `Найдено файлов: ${totalItems}`
         )}
       </Text>
 
