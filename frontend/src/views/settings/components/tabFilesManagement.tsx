@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useQueryStates, parseAsInteger, parseAsString } from "nuqs";
 import { useLazyGetFilePageQuery } from "@/api/file";
 import { useGetStoragesQuery } from "@/api/storage";
 import { FileState } from "@/enums/enums";
@@ -14,12 +15,11 @@ import {
   Stack,
   Text,
   Loader,
-  Tooltip
+  Tooltip,
 } from "@mantine/core";
-import { IconSearch, IconFilter } from "@tabler/icons-react";
 import { format } from "date-fns";
 
-interface TabFilesManagementProps { }
+interface TabFilesManagementProps {}
 
 const FILE_STATUS_COLORS: Record<FileState, string> = {
   [FileState.PENDING]: "gray",
@@ -55,13 +55,15 @@ const STATUS_OPTIONS = [
 export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
   const ITEMS_PER_PAGE = 20;
 
-  // State
-  const [page, setPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [selectedStorage, setSelectedStorage] = useState<string>("all");
-  const [selectedTimeFilter, setSelectedTimeFilter] = useState<string>("all");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filters, setFilters] = useQueryStates({
+    page: parseAsInteger.withDefault(1),
+    q: parseAsString.withDefault(""),
+    status: parseAsString.withDefault("all"),
+    storage: parseAsString.withDefault("all"),
+    time: parseAsString.withDefault("all"),
+  });
+
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.q);
 
   // API hooks
   const [triggerQuery, { data: filesData, isLoading, isFetching }] =
@@ -71,12 +73,12 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setPage(1);
+      setDebouncedSearch(filters.q);
+      setFilters({ page: 1 }); // Reset to first page on search
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [filters.q]);
 
   // Calculate time filter date
   const getTimeFilterDate = (filter: string): Date | null => {
@@ -99,28 +101,34 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
   const filteredFiles = useMemo(() => {
     if (!filesData?.items) return [];
 
-    const timeFilterDate = getTimeFilterDate(selectedTimeFilter);
+    const timeFilterDate = getTimeFilterDate(filters.time);
     if (!timeFilterDate) return filesData.items;
 
     return filesData.items.filter((file: IFile) => {
       const fileDate = new Date(file.createdAt);
       return fileDate >= timeFilterDate;
     });
-  }, [filesData?.items, selectedTimeFilter]);
+  }, [filesData?.items, filters.time]);
 
   // Fetch files when filters change
   useEffect(() => {
-    const offset = (page - 1) * ITEMS_PER_PAGE;
+    const offset = (filters.page - 1) * ITEMS_PER_PAGE;
 
     triggerQuery({
       limit: ITEMS_PER_PAGE,
       offset,
       q: debouncedSearch || undefined,
       status:
-        selectedStatus !== "all" ? (selectedStatus as FileState) : undefined,
-      vectorStoreId: selectedStorage !== "all" ? selectedStorage : undefined,
+        filters.status !== "all" ? (filters.status as FileState) : undefined,
+      vectorStoreId: filters.storage !== "all" ? filters.storage : undefined,
     });
-  }, [page, debouncedSearch, selectedStatus, selectedStorage, triggerQuery]);
+  }, [
+    filters.page,
+    debouncedSearch,
+    filters.status,
+    filters.storage,
+    triggerQuery,
+  ]);
 
   // Storage options for select
   const storageOptions = [
@@ -131,7 +139,7 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
     })),
   ];
 
-  // Calculate total pages based on filtered results
+  // Calculate total pages based on total results from API
   const totalPages = Math.ceil((filesData?.total || 0) / ITEMS_PER_PAGE);
 
   // Format file size
@@ -197,18 +205,17 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
       <Group gap="md">
         <TextInput
           placeholder="Поиск по названию..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.currentTarget.value)}
+          value={filters.q}
+          onChange={(e) => setFilters({ q: e.currentTarget.value })}
           style={{ flex: 1, maxWidth: 300 }}
         />
 
         <Select
           placeholder="Статус"
           data={STATUS_OPTIONS}
-          value={selectedStatus}
+          value={filters.status}
           onChange={(value) => {
-            setSelectedStatus(value || "all");
-            setPage(1);
+            setFilters({ status: value || "all", page: 1 });
           }}
           style={{ width: 200 }}
           clearable={false}
@@ -217,10 +224,9 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
         <Select
           placeholder="Хранилище"
           data={storageOptions}
-          value={selectedStorage}
+          value={filters.storage}
           onChange={(value) => {
-            setSelectedStorage(value || "all");
-            setPage(1);
+            setFilters({ storage: value || "all", page: 1 });
           }}
           style={{ width: 200 }}
           clearable={false}
@@ -229,10 +235,9 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
         <Select
           placeholder="Период"
           data={TIME_FILTER_OPTIONS}
-          value={selectedTimeFilter}
+          value={filters.time}
           onChange={(value) => {
-            setSelectedTimeFilter(value || "all");
-            setPage(1);
+            setFilters({ time: value || "all", page: 1 });
           }}
           style={{ width: 200 }}
           clearable={false}
@@ -294,8 +299,8 @@ export const TabFilesManagement: React.FC<TabFilesManagementProps> = () => {
       {totalPages > 1 && (
         <Group justify="center" mt="md" mb="sm">
           <Pagination
-            value={page}
-            onChange={setPage}
+            value={filters.page}
+            onChange={(newPage) => setFilters({ page: newPage })}
             total={totalPages}
             siblings={1}
             boundaries={1}
